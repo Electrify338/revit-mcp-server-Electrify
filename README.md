@@ -1,4 +1,4 @@
-[![Cover Image](./assets/cover.png?v=2)](https://github.com/LuDattilo/revit-mcp-server)
+[![Cover Image](./assets/cover.png?v=2)](https://github.com/Electrify338/revit-mcp-server-Electrify)
 
 # mcp-servers-for-revit
 
@@ -73,7 +73,7 @@ flowchart LR
 Open PowerShell and paste this command:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/LuDattilo/revit-mcp-server/main/scripts/install.ps1 | iex"
+powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Electrify338/revit-mcp-server-Electrify/main/scripts/install.ps1 | iex"
 ```
 
 The script:
@@ -98,7 +98,7 @@ The script:
 #### Option B: Manual install
 
 > [!IMPORTANT]
-> **Download the pre-built ZIP from the [Releases](https://github.com/LuDattilo/revit-mcp-server/releases) page.** Do NOT clone the repository or copy the source code — the source contains `.cs` files, not compiled `.dll` files. The plugin will not work without compiled binaries.
+> **Download the pre-built ZIP from the [Releases](https://github.com/Electrify338/revit-mcp-server-Electrify/releases) page.** Do NOT clone the repository or copy the source code — the source contains `.cs` files, not compiled `.dll` files. The plugin will not work without compiled binaries.
 
 Extract the ZIP to:
 
@@ -133,7 +133,29 @@ Addins/2025/
 > [!WARNING]
 > If `RevitMCPPlugin.dll` is missing or the `revit_mcp_plugin/` subfolder is not present, the plugin will not load. Check that you extracted the **contents** of the ZIP, not the ZIP file itself.
 
-### 2. Configure the MCP server
+### 2. Connect your AI app
+
+Nothing to do for the common cases. Every time Revit starts, the plugin registers
+the local MCP server (bundled Node.js + `server\build\index.js`) with each AI app it
+finds on the machine, backing the file up first and only writing when the entry is
+missing or stale:
+
+| AI app | Config file it writes |
+|--------|-----------------------|
+| Claude Desktop | `%APPDATA%\Claude\claude_desktop_config.json` (also MSIX install) |
+| Claude Code | `%USERPROFILE%\.claude.json` (user scope) |
+| OpenAI Codex (CLI / IDE) | `%USERPROFILE%\.codex\config.toml` → `[mcp_servers.revit-mcp]` |
+| Google Antigravity | `%USERPROFILE%\.gemini\config\mcp_config.json` (2.0) and `.gemini\antigravity\mcp_config.json` (1.x) |
+| Gemini CLI | `%USERPROFILE%\.gemini\settings.json` |
+| Cursor | `%USERPROFILE%\.cursor\mcp.json` |
+| VS Code (Copilot) | `%APPDATA%\Code\User\mcp.json` |
+| Windsurf | `%USERPROFILE%\.codeium\windsurf\mcp_config.json` |
+
+The server entry is always named `revit-mcp`. Restart the AI app once after the
+first run. `install.ps1` does the same up front (STEP 7), except for Claude Code and
+Gemini CLI, whose files Windows PowerShell cannot rewrite safely.
+
+Manual alternatives, if you prefer:
 
 **Claude Code**
 
@@ -172,6 +194,28 @@ Click **"Revit MCP Switch"** to start the TCP server. When the status indicator 
 > If you only see the **Switch** button but not **MCP Panel** or **Settings**, the plugin did not load correctly. See [Troubleshooting](#troubleshooting) below.
 
 ![Architecture](./assets/architecture.svg)
+
+### Deploying to a whole office (Kemet Addons)
+
+For the Kemet office this plugin is not installed by hand at all. The
+[Kemet Addons](https://github.com/Electrify338/Kemet-Revit-Addons) suite installs
+and silently updates it from the office update share, using the same release
+zips this repo's `Release` workflow builds:
+
+1. Push a `v*` tag here → GitHub Actions builds `mcp-servers-for-revit-vX.Y.Z-Revit<year>.zip`
+   per Revit year and attaches them to a release.
+2. IT's hourly `sync-from-github.ps1` (in the Kemet repo) mirrors the latest
+   release into `<share>\KemetAddons\RevitMcp\` and writes a `version.json`.
+3. At Revit start, Kemet Addons compares that `version.json` with the
+   `RevitMCPPlugin.dll` on the machine and copies the new zip into
+   `%AppData%\Autodesk\Revit\Addins\<year>\` (locked files are renamed aside).
+   It takes effect at the next Revit start, and the plugin then connects the
+   AI apps as described above.
+
+Users see a **Revit MCP** button on the Kemet Addons tab that shows the
+installed version, which AI apps are connected, and lets them install or
+update right away. Nothing in this flow needs an API key: each AI app uses
+the user's own subscription.
 
 ## Supported Revit Versions
 
@@ -339,7 +383,7 @@ The Revit plugin includes a dockable chat panel that connects directly to the An
 
 1. Close Revit
 2. Delete the old installation from `%AppData%\Autodesk\Revit\Addins\<version>\`
-3. Download the correct ZIP from the [Releases](https://github.com/LuDattilo/revit-mcp-server/releases) page
+3. Download the correct ZIP from the [Releases](https://github.com/Electrify338/revit-mcp-server-Electrify/releases) page
 4. Extract and verify the folder structure matches the one shown in [Step 1](#1-install-the-revit-plugin)
 5. Restart Revit
 
@@ -448,7 +492,7 @@ git push origin main --tags
 | **Original concept** | **Roman Zarkhin** — created the first MCP server for Revit (15 tools) | [romanzarkhin/revit-mcp](https://github.com/romanzarkhin/revit-mcp) |
 | **Expansion to 80+ tools** | **[mcp-servers-for-revit](https://github.com/mcp-servers-for-revit) community** — lisiting01, jmcouffin, huyan1458, bobbyg603, chuongmep and others expanded the project across three repos | [revit-mcp](https://github.com/mcp-servers-for-revit/revit-mcp), [revit-mcp-plugin](https://github.com/mcp-servers-for-revit/revit-mcp-plugin), [revit-mcp-commandset](https://github.com/mcp-servers-for-revit/revit-mcp-commandset) |
 | **Consolidated repo** | **[sparx-fire](https://sparx-fire.com)** (Bobby Galli) — merged the three repos into a single solution | [mcp-servers-for-revit/mcp-servers-for-revit](https://github.com/mcp-servers-for-revit/mcp-servers-for-revit) |
-| **Current maintainer** | **LuDattilo** — language-independent operation, embedded Claude chat panel, PowerShell installer | [LuDattilo/revit-mcp-server](https://github.com/LuDattilo/revit-mcp-server) |
+| **Current maintainer** | **LuDattilo** — language-independent operation, embedded Claude chat panel, PowerShell installer | [Electrify338/revit-mcp-server-Electrify](https://github.com/Electrify338/revit-mcp-server-Electrify) |
 
 ## License
 

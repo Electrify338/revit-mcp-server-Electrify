@@ -34,7 +34,12 @@
     Skip the Node.js prerequisite check.
 
 .PARAMETER SkipMcpConfig
-    Skip Claude Desktop MCP server configuration.
+    Skip AI client configuration (Claude Desktop, Codex, Antigravity, Cursor, ...).
+
+.PARAMETER NonInteractive
+    Never prompt: replace an existing installation, skip a Revit version that
+    is running, do not offer to install Node.js. For logon scripts and other
+    unattended runs.
 
 .EXAMPLE
     .\install.ps1
@@ -47,7 +52,7 @@
     .\install.ps1 -Uninstall
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/LuDattilo/revit-mcp-server/main/scripts/install.ps1 | iex"
+    powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Electrify338/revit-mcp-server-Electrify/main/scripts/install.ps1 | iex"
     # One-liner install directly from GitHub
 #>
 param(
@@ -58,6 +63,7 @@ param(
     [switch]$Force,
     [switch]$SkipNodeCheck,
     [switch]$SkipMcpConfig,
+    [switch]$NonInteractive,
     [string]$LocalZip
 )
 
@@ -79,7 +85,7 @@ if ($_commonPath -and (Test-Path $_commonPath)) {
     . $_commonPath
 } else {
     # Inline fallback: constants
-    $REPO          = 'LuDattilo/revit-mcp-server'
+    $REPO          = 'Electrify338/revit-mcp-server-Electrify'
     $PLUGIN_NAME   = 'mcp-servers-for-revit'
     $PLUGIN_FOLDER = 'revit_mcp_plugin'
     $NPM_PACKAGE   = 'mcp-server-for-revit'
@@ -269,7 +275,7 @@ if ($Uninstall) {
     }
 
     Write-Warn "Will remove plugin from: $(($toRemove | ForEach-Object { $_.Year }) -join ', ')"
-    $confirm = Read-Host "  Continue? [y/N]"
+    $confirm = if ($NonInteractive) { 'y' } else { Read-Host "  Continue? [y/N]" }
     if ($confirm -notmatch '^[yY]$') {
         Write-Warn "Uninstall cancelled."
         exit 0
@@ -305,8 +311,8 @@ if ($alreadyInstalled.Count -gt 0) {
         Write-Warn "Existing installation detected for Revit $($rv.Year)"
     }
 
-    if ($Force) {
-        Write-Step "-Force flag set  --  replacing existing installation."
+    if ($Force -or $NonInteractive) {
+        Write-Step "Replacing existing installation."
     } else {
         Write-Host ""
         Write-Host "  An existing installation was detected." -ForegroundColor Yellow
@@ -373,7 +379,7 @@ if (-not $SkipNodeCheck) {
         Write-Host "  [2] Skip  --  I will install Node.js later"            -ForegroundColor White
         Write-Host "  [3] Skip  --  I only need the Revit plugin"            -ForegroundColor White
         Write-Host ""
-        $nodeChoice = Read-Host "  Choose [1/2/3]"
+        $nodeChoice = if ($NonInteractive) { '2' } else { Read-Host "  Choose [1/2/3]" }
 
         if ($nodeChoice -eq '1') {
             Write-Step "Fetching latest Node.js LTS version..."
@@ -549,6 +555,7 @@ function Install-ForVersion {
         }
         if ($thisRunning) {
             Write-Warn "Revit $year is currently running -- close it first."
+            if ($NonInteractive) { Write-Warn "Skipped Revit $year (unattended run)."; return $false }
             $wait = (Read-Host "  [Enter / skip]").Trim().ToLower()
             if ($wait -eq 'skip') { Write-Warn "Skipped Revit $year."; return $false }
         }
@@ -598,6 +605,7 @@ function Install-ForVersion {
     }
     if ($thisRunning) {
         Write-Warn "Revit $year is currently running  --  DLL files will be locked."
+        if ($NonInteractive) { Write-Warn "Skipped Revit $year (unattended run)."; return $false }
         Write-Warn "Close Revit $year and press Enter to retry, or type 'skip'."
         $wait = (Read-Host "  [Enter / skip]").Trim().ToLower()
         if ($wait -eq 'skip') { Write-Warn "Skipped Revit $year."; return $false }
@@ -673,51 +681,75 @@ if ($installed -eq 0) {
 }
 
 # =============================================================================
-# STEP 7  --  CONFIGURE CLAUDE DESKTOP
+# STEP 7  --  CONFIGURE AI CLIENTS
 # =============================================================================
+# The plugin repeats this at every Revit start (McpClientConfigurator), so a
+# client installed later is picked up without re-running this script.
 if (-not $SkipMcpConfig) {
-    Write-Host "  STEP 7  --  Claude Desktop configuration" -ForegroundColor White
+    Write-Host "  STEP 7  --  AI client configuration" -ForegroundColor White
 
-    $claudeDir = Get-ClaudeDesktopDir
-
-    if (-not $claudeDir) {
-        Write-Warn "Claude Desktop not found  --  skipping automatic configuration"
-        Write-Info "Install Claude Desktop from https://claude.ai/download"
-        Write-Info "Then re-run: .\install.ps1 -SkipNodeCheck"
+    $serverPath = Get-McpServerPath
+    $nodePath   = Get-NodePath
+    if (-not $serverPath -or -not $nodePath) {
+        Write-Warn "Local server or Node.js not found  --  skipping AI client configuration"
+        Write-Info "server: $serverPath"
+        Write-Info "node:   $nodePath"
+        Write-Info "The plugin configures the AI apps itself the next time Revit starts."
+    } elseif (Get-Command Set-McpClientConfigs -ErrorAction SilentlyContinue) {
+        Write-Info "Node:   $nodePath"
+        Write-Info "Server: $serverPath"
+        $results = Set-McpClientConfigs -NodePath $nodePath -ServerPath $serverPath
+        foreach ($r in $results) {
+            if (-not $r.Detected) { Write-Info "$($r.Name): not installed, skipped"; continue }
+            if ($r.Error)         { Write-Warn "$($r.Name): $($r.Error)"; continue }
+            if ($r.Changed)       { Write-Ok "$($r.Name)  --  revit-mcp configured  ($($r.ConfigPath))" }
+            else                  { Write-Ok "$($r.Name)  --  already configured" }
+        }
+        Write-Info "Claude Code and Gemini CLI are configured by the plugin at the next Revit start."
     } else {
-        Write-Ok "Claude Desktop found: $claudeDir"
-        $cfgInfo    = Get-ClaudeDesktopConfig $claudeDir
-        $configPath = $cfgInfo.Path
+        # irm | iex mode: common.ps1 is not available, so only Claude Desktop is
+        # configured here. The plugin handles every other client at Revit start.
+        $claudeDir = Get-ClaudeDesktopDir
 
-        $config = if ($cfgInfo.Exists -and $cfgInfo.Config) {
-            $cfgInfo.Config
-        } elseif ($cfgInfo.Exists) {
-            Write-Warn "Could not parse existing config  --  backing up"
-            Copy-Item $configPath "$configPath.bak" -Force
-            [PSCustomObject]@{}
-        } else { [PSCustomObject]@{} }
-
-        # Use the local server installed with the plugin (not the npm package)
-        $serverPath = Get-McpServerPath
-        if (-not $serverPath) {
-            Write-Warn "Claude Desktop  --  local server not found, skipping config"
-            Write-Info "This should not happen  --  check that the plugin was installed correctly"
+        if (-not $claudeDir) {
+            Write-Warn "Claude Desktop not found  --  skipping automatic configuration"
+            Write-Info "Install Claude Desktop from https://claude.ai/download"
+            Write-Info "Then re-run: .\install.ps1 -SkipNodeCheck"
         } else {
-            $nodePath = Get-NodePath
-            if (-not $nodePath) {
-                Write-Warn "Claude Desktop  --  Node.js not found (system or bundled), skipping config"
-                Write-Info "Install Node.js from https://nodejs.org then re-run: .\install.ps1 -SkipNodeCheck"
+            Write-Ok "Claude Desktop found: $claudeDir"
+            $cfgInfo    = Get-ClaudeDesktopConfig $claudeDir
+            $configPath = $cfgInfo.Path
+
+            $config = if ($cfgInfo.Exists -and $cfgInfo.Config) {
+                $cfgInfo.Config
+            } elseif ($cfgInfo.Exists) {
+                Write-Warn "Could not parse existing config  --  backing up"
+                Copy-Item $configPath "$configPath.bak" -Force
+                [PSCustomObject]@{}
+            } else { [PSCustomObject]@{} }
+
+            # Use the local server installed with the plugin (not the npm package)
+            $serverPath = Get-McpServerPath
+            if (-not $serverPath) {
+                Write-Warn "Claude Desktop  --  local server not found, skipping config"
+                Write-Info "This should not happen  --  check that the plugin was installed correctly"
             } else {
-                if (-not $config.mcpServers) {
-                    $config | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{})
+                $nodePath = Get-NodePath
+                if (-not $nodePath) {
+                    Write-Warn "Claude Desktop  --  Node.js not found (system or bundled), skipping config"
+                    Write-Info "Install Node.js from https://nodejs.org then re-run: .\install.ps1 -SkipNodeCheck"
+                } else {
+                    if (-not $config.mcpServers) {
+                        $config | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{})
+                    }
+                    $revitMcpEntry = New-RevitMcpEntry $serverPath
+                    Write-Info "Node: $nodePath"
+                    Write-Info "Server: $serverPath"
+                    $config.mcpServers | Add-Member -NotePropertyName 'revit-mcp' -NotePropertyValue $revitMcpEntry -Force
+                    $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
+                    Write-Ok "Claude Desktop  --  revit-mcp configured"
+                    Write-Info "Config: $configPath"
                 }
-                $revitMcpEntry = New-RevitMcpEntry $serverPath
-                Write-Info "Node: $nodePath"
-                Write-Info "Server: $serverPath"
-                $config.mcpServers | Add-Member -NotePropertyName 'revit-mcp' -NotePropertyValue $revitMcpEntry -Force
-                $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
-                Write-Ok "Claude Desktop  --  revit-mcp configured"
-                Write-Info "Config: $configPath"
             }
         }
     }
@@ -735,7 +767,7 @@ Write-Host "  Next steps:" -ForegroundColor White
 Write-Host "    1. Open (or restart) Revit"                                     -ForegroundColor Gray
 Write-Host "    2. Go to the Add-Ins tab  --  you will see the Revit MCP panel"    -ForegroundColor Gray
 Write-Host "    3. Click 'Revit MCP Switch' to start the local server"          -ForegroundColor Gray
-Write-Host "    4. Open Claude Desktop / Claude Code and start chatting"        -ForegroundColor Gray
+Write-Host "    4. Open Claude, Codex, Antigravity, Cursor... and start chatting" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Docs:   https://github.com/$REPO#readme"   -ForegroundColor DarkGray
 Write-Host "  Issues: https://github.com/$REPO/issues"   -ForegroundColor DarkGray

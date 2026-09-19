@@ -19,8 +19,10 @@ namespace revit_mcp_plugin.Core
             McpLogger.Initialize(pluginDir);
             McpLogger.Info("Application", "Plugin starting");
 
-            // Auto-configure Claude Desktop on first run (silent, never crashes)
-            ClaudeDesktopConfigurator.EnsureConfigured();
+            // Register the MCP server with every AI app on this machine
+            // (Claude Desktop, Claude Code, Codex, Antigravity, Cursor...).
+            // Silent, never crashes; only writes when something is missing.
+            McpClientConfigurator.EnsureConfigured();
 
             // Register Dockable Panel
             try

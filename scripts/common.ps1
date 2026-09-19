@@ -12,7 +12,7 @@
 #>
 
 # -- Constants -----------------------------------------------------------------
-$script:REPO           = 'LuDattilo/revit-mcp-server'
+$script:REPO           = 'Electrify338/revit-mcp-server-Electrify'
 $script:PLUGIN_NAME    = 'mcp-servers-for-revit'
 $script:PLUGIN_FOLDER  = 'revit_mcp_plugin'
 $script:NPM_PACKAGE    = 'mcp-server-for-revit'
@@ -295,4 +295,180 @@ function Get-ClaudeDesktopConfig {
         }
     }
     return $result
+}
+
+# ==============================================================================
+# AI client configuration (Claude Desktop, Codex, Antigravity, Cursor, ...)
+# ==============================================================================
+# The Revit plugin does the same job itself at every Revit start (see
+# plugin/Utils/McpClientConfigurator.cs). These functions let the installer
+# and fix-mcp.ps1 do it up front. Claude Code (~/.claude.json) and Gemini CLI
+# (~/.gemini/settings.json) are deliberately left to the plugin: those files
+# are large and full of timestamps, and Windows PowerShell 5.1's JSON cmdlets
+# rewrite ISO dates as "\/Date(...)\/", which would corrupt them.
+
+<#
+.SYNOPSIS
+    Every AI client this script knows, with its config file and whether it
+    looks installed on this machine.
+#>
+function Get-McpClientTargets {
+    $userHome = $env:USERPROFILE
+    $claudeDir = Get-ClaudeDesktopDir
+    if (-not $claudeDir) { $claudeDir = "$env:APPDATA\Claude" }
+    return @(
+        [PSCustomObject]@{ Name = 'Claude Desktop';     Layout = 'mcpServers'; ConfigPath = "$claudeDir\claude_desktop_config.json";           Detected = $true }
+        [PSCustomObject]@{ Name = 'Codex';              Layout = 'toml';       ConfigPath = "$userHome\.codex\config.toml";                      Detected = (Test-Path "$userHome\.codex") }
+        [PSCustomObject]@{ Name = 'Antigravity';        Layout = 'mcpServers'; ConfigPath = "$userHome\.gemini\config\mcp_config.json";          Detected = (Test-Path "$userHome\.gemini\config") }
+        [PSCustomObject]@{ Name = 'Antigravity (1.x)';  Layout = 'mcpServers'; ConfigPath = "$userHome\.gemini\antigravity\mcp_config.json";     Detected = (Test-Path "$userHome\.gemini\antigravity") }
+        [PSCustomObject]@{ Name = 'Cursor';             Layout = 'mcpServers'; ConfigPath = "$userHome\.cursor\mcp.json";                        Detected = (Test-Path "$userHome\.cursor") }
+        [PSCustomObject]@{ Name = 'VS Code';            Layout = 'servers';    ConfigPath = "$env:APPDATA\Code\User\mcp.json";                   Detected = (Test-Path "$env:APPDATA\Code\User") }
+        [PSCustomObject]@{ Name = 'Windsurf';           Layout = 'mcpServers'; ConfigPath = "$userHome\.codeium\windsurf\mcp_config.json";       Detected = (Test-Path "$userHome\.codeium\windsurf") }
+    )
+}
+
+function ConvertTo-TomlString { param([string]$s) return '"' + $s.Replace('\', '\\').Replace('"', '\"') + '"' }
+function ConvertFrom-TomlString { param([string]$s) return $s.Replace('\"', '"').Replace('\\', '\') }
+
+function Backup-McpConfigFile {
+    param([string]$Path)
+    if (Test-Path $Path) {
+        $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+        Copy-Item $Path "$Path.$stamp.bak" -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Write-Utf8NoBom {
+    param([string]$Path, [string]$Text)
+    $dir = Split-Path -Parent $Path
+    if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [IO.File]::WriteAllText($Path, $Text, (New-Object Text.UTF8Encoding $false))
+}
+
+<#
+.SYNOPSIS
+    Add or fix the revit-mcp entry in a JSON client config. Returns $true when
+    the file was written, $false when it was already correct.
+#>
+function Set-McpJsonEntry {
+    param([string]$Path, [string]$Key, [string]$NodePath, [string]$ServerPath, [switch]$IncludeType)
+    $config = $null
+    if (Test-Path $Path) {
+        $raw = Get-Content $Path -Raw
+        if ($raw -and $raw.Trim()) {
+            try { $config = $raw | ConvertFrom-Json }
+            catch {
+                $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+                Copy-Item $Path "$Path.corrupted.$stamp.bak" -Force
+                $config = $null
+            }
+        }
+    }
+    if (-not $config) { $config = [PSCustomObject]@{} }
+
+    $servers = $config.$Key
+    if (-not $servers) {
+        $servers = [PSCustomObject]@{}
+        $config | Add-Member -NotePropertyName $Key -NotePropertyValue $servers -Force
+    }
+
+    $existing = $servers.'revit-mcp'
+    if ($existing -and $existing.command -eq $NodePath -and $existing.args -and @($existing.args)[0] -eq $ServerPath) {
+        return $false
+    }
+
+    $entry = [ordered]@{ command = $NodePath; args = @($ServerPath) }
+    if ($IncludeType) { $entry['type'] = 'stdio' }
+    if ($existing) {
+        # Keep anything else the user put on the entry (env, disabled, ...).
+        foreach ($p in $existing.PSObject.Properties) {
+            if (-not $entry.Contains($p.Name)) { $entry[$p.Name] = $p.Value }
+        }
+    }
+    $servers | Add-Member -NotePropertyName 'revit-mcp' -NotePropertyValue ([PSCustomObject]$entry) -Force
+
+    Backup-McpConfigFile $Path
+    Write-Utf8NoBom -Path $Path -Text ($config | ConvertTo-Json -Depth 100)
+    # Validate what we wrote.
+    $null = Get-Content $Path -Raw | ConvertFrom-Json
+    return $true
+}
+
+<#
+.SYNOPSIS
+    Add or fix [mcp_servers.revit-mcp] in Codex's config.toml. Returns $true
+    when the file was written.
+#>
+function Set-McpTomlEntry {
+    param([string]$Path, [string]$NodePath, [string]$ServerPath)
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    if (Test-Path $Path) {
+        $text = Get-Content $Path -Raw
+        if ($text) { foreach ($l in (($text -replace "`r`n", "`n") -split "`n")) { $lines.Add($l) } }
+    }
+
+    $header = '^\s*\[\s*mcp_servers\s*\.\s*(?:"revit-mcp"|revit-mcp)\s*\]\s*(#.*)?$'
+    $sub    = '^\s*\[\s*mcp_servers\s*\.\s*(?:"revit-mcp"|revit-mcp)\s*\.'
+    $start = -1; $end = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match $header) {
+            $start = $i; $end = $lines.Count
+            for ($j = $i + 1; $j -lt $lines.Count; $j++) {
+                if ($lines[$j] -match '^\s*\[' -and $lines[$j] -notmatch $sub) { $end = $j; break }
+            }
+            break
+        }
+    }
+
+    $block = [string[]]@(
+        '[mcp_servers.revit-mcp]',
+        "command = $(ConvertTo-TomlString $NodePath)",
+        "args = [$(ConvertTo-TomlString $ServerPath)]"
+    )
+
+    if ($start -ge 0) {
+        $cmd = $null; $arg = $null
+        for ($i = $start + 1; $i -lt $end; $i++) {
+            if ($lines[$i] -match '^\s*command\s*=\s*"((?:[^"\\]|\\.)*)"') { $cmd = ConvertFrom-TomlString $Matches[1] }
+            if ($lines[$i] -match '^\s*args\s*=\s*\[\s*"((?:[^"\\]|\\.)*)"')  { $arg = ConvertFrom-TomlString $Matches[1] }
+        }
+        if ($cmd -eq $NodePath -and $arg -eq $ServerPath) { return $false }
+        $lines.RemoveRange($start, $end - $start)
+        $lines.InsertRange($start, $block)
+    } else {
+        if ($lines.Count -gt 0 -and $lines[$lines.Count - 1].Trim()) { $lines.Add('') }
+        $lines.AddRange($block)
+    }
+
+    Backup-McpConfigFile $Path
+    Write-Utf8NoBom -Path $Path -Text (($lines -join "`r`n") + "`r`n")
+    return $true
+}
+
+<#
+.SYNOPSIS
+    Register the local Revit MCP server with every detected AI client.
+
+.OUTPUTS
+    One object per client: Name, ConfigPath, Detected, Changed, Error.
+#>
+function Set-McpClientConfigs {
+    param([string]$NodePath, [string]$ServerPath)
+    $results = @()
+    foreach ($t in Get-McpClientTargets) {
+        $r = [PSCustomObject]@{ Name = $t.Name; ConfigPath = $t.ConfigPath; Detected = $t.Detected; Changed = $false; Error = $null }
+        $results += $r
+        if (-not $t.Detected) { continue }
+        try {
+            if ($t.Layout -eq 'toml') {
+                $r.Changed = Set-McpTomlEntry -Path $t.ConfigPath -NodePath $NodePath -ServerPath $ServerPath
+            } else {
+                $r.Changed = Set-McpJsonEntry -Path $t.ConfigPath -Key $t.Layout -NodePath $NodePath `
+                                              -ServerPath $ServerPath -IncludeType:($t.Layout -eq 'servers')
+            }
+        } catch {
+            $r.Error = $_.Exception.Message
+        }
+    }
+    return $results
 }

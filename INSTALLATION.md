@@ -70,7 +70,7 @@ dotnet --list-sdks
 
 ### Step 1: Download the Release
 
-1. Go to the [Releases](https://github.com/LuDattilo/revit-mcp-server/releases) page
+1. Go to the [Releases](https://github.com/Electrify338/revit-mcp-server-Electrify/releases) page
 2. Download the ZIP matching your Revit version:
    - `mcp-servers-for-revit-vX.Y.Z-Revit2023.zip`
    - `mcp-servers-for-revit-vX.Y.Z-Revit2024.zip`
@@ -128,7 +128,7 @@ Addins/<version>/
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/LuDattilo/revit-mcp-server.git
+git clone https://github.com/Electrify338/revit-mcp-server-Electrify.git
 cd mcp-servers-for-revit
 ```
 
@@ -216,13 +216,43 @@ Or manually edit `%APPDATA%\Claude\claude_desktop_config.json`:
 
 Restart Claude Desktop and verify that the hammer icon appears at the bottom right.
 
+### Automatic configuration of every AI app
+
+You normally do not need any of the manual steps on this page. At each Revit
+start the plugin (`plugin/Utils/McpClientConfigurator.cs`) writes a `revit-mcp`
+entry pointing at the bundled Node.js and `server\build\index.js` into the
+config of every AI app it detects: Claude Desktop, Claude Code
+(`~\.claude.json`), Codex (`~\.codex\config.toml`), Antigravity
+(`~\.gemini\config\mcp_config.json` and the 1.x `~\.gemini\antigravity\`
+path), Gemini CLI (`~\.gemini\settings.json`), Cursor (`~\.cursor\mcp.json`),
+VS Code (`%APPDATA%\Code\User\mcp.json`) and Windsurf
+(`~\.codeium\windsurf\mcp_config.json`). Files are backed up before they are
+changed, other servers in them are preserved, and nothing is written when the
+entry is already correct. A dialog lists the apps that were configured; restart
+those apps once.
+
 ### For Claude Code (CLI)
 
-Run the following command to register the MCP server:
+Configured automatically (see above). To do it by hand instead:
 
 ```bash
-claude mcp add mcp-server-for-revit -- npx -y mcp-server-for-revit
+claude mcp add --scope user revit-mcp -- "%AppData%\Autodesk\Revit\Addins\2026\revit_mcp_plugin\Commands\RevitMCPCommandSet\server\runtime\node.exe" "%AppData%\Autodesk\Revit\Addins\2026\revit_mcp_plugin\Commands\RevitMCPCommandSet\server\build\index.js"
 ```
+
+### For Codex
+
+Configured automatically. By hand, add to `%USERPROFILE%\.codex\config.toml`:
+
+```toml
+[mcp_servers.revit-mcp]
+command = "C:\\Users\\<you>\\AppData\\Roaming\\Autodesk\\Revit\\Addins\\2026\\revit_mcp_plugin\\Commands\\RevitMCPCommandSet\\server\\runtime\\node.exe"
+args = ["C:\\Users\\<you>\\AppData\\Roaming\\Autodesk\\Revit\\Addins\\2026\\revit_mcp_plugin\\Commands\\RevitMCPCommandSet\\server\\build\\index.js"]
+```
+
+### For Antigravity, Cursor, Windsurf, Gemini CLI
+
+Configured automatically. Their files all use the same `"mcpServers": { "revit-mcp": { "command": ..., "args": [...] } }`
+shape as Claude Desktop; VS Code uses `"servers"` with `"type": "stdio"`.
 
 ### For Other MCP Clients (Cline, Continue, etc.)
 
