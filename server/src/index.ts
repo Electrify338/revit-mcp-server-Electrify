@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { registerTools } from "./tools/register.js";
 import { getDatabase } from "./database/db.js";
 import { createRequire } from "module";
+import { setClientNameProvider } from "./utils/ClientInfo.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
@@ -12,6 +13,10 @@ const server = new McpServer({
   name: "mcp-server-for-revit",
   version,
 });
+
+// Tag forwarded commands with the connected AI app's name (known after the
+// MCP initialize handshake, hence read lazily on every call).
+setClientNameProvider(() => server.server.getClientVersion()?.name);
 
 // Start server
 async function main() {

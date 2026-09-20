@@ -1,5 +1,6 @@
 import * as net from "net";
 import { randomUUID } from "crypto";
+import { getClientName } from "./ClientInfo.js";
 
 export class RevitClientConnection {
   host: string;
@@ -129,6 +130,9 @@ export class RevitClientConnection {
           method: command,
           params: params,
           id: requestId,
+          // Extra field, ignored by the JSON-RPC parser in the plugin and read
+          // separately by its usage counter.
+          client: getClientName() ?? "unknown",
         };
 
         // Store callback

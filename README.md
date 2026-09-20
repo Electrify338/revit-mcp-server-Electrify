@@ -212,10 +212,23 @@ zips this repo's `Release` workflow builds:
    It takes effect at the next Revit start, and the plugin then connects the
    AI apps as described above.
 
-Users see a **Revit MCP** button on the Kemet Addons tab that shows the
-installed version, which AI apps are connected, and lets them install or
-update right away. Nothing in this flow needs an API key: each AI app uses
-the user's own subscription.
+Kemet Addons then asks the user, once per AI app, which apps to connect, and
+its **Revit MCP** button shows the installed version, per-app Connect /
+Disconnect, the month's tool-call count, and installs or updates on demand.
+When Kemet Addons is present this plugin does not write AI app configs
+itself. Nothing in this flow needs an API key: each AI app uses the user's
+own subscription.
+
+### Usage counting
+
+Every tool call that reaches Revit is recorded by the plugin
+(`plugin/Helpers/UsageTracker.cs`) as one JSON line in
+`revit_mcp_plugin\logs\usage-<yyyy-MM>.jsonl`: timestamp, user, machine,
+department, Revit version, which AI app (from the MCP handshake), tool name,
+success, duration, project name. If `revit_mcp_plugin\usage.json` names a
+`url` (and `token`), batches are POSTed there as a JSON array with a bearer
+token, queued locally while offline. Prompts and model output are never
+recorded. See `CLAUDE.md` for the exact contract.
 
 ## Supported Revit Versions
 

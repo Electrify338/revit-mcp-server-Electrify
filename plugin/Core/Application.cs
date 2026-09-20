@@ -19,10 +19,18 @@ namespace revit_mcp_plugin.Core
             McpLogger.Initialize(pluginDir);
             McpLogger.Info("Application", "Plugin starting");
 
+            // Count every tool call (logs\usage-*.jsonl, optional upload; see UsageTracker).
+            UsageTracker.Initialize(pluginDir, application.ControlledApplication.VersionNumber);
+
             // Register the MCP server with every AI app on this machine
             // (Claude Desktop, Claude Code, Codex, Antigravity, Cursor...).
             // Silent, never crashes; only writes when something is missing.
-            McpClientConfigurator.EnsureConfigured();
+            // When Kemet Addons sits next to us it owns that job (it asks the
+            // user first), so this stays out of the way.
+            if (!KemetAddonsPresent(pluginDir))
+                McpClientConfigurator.EnsureConfigured();
+            else
+                McpLogger.Info("Application", "Kemet Addons detected - AI client configuration left to it");
 
             // Register Dockable Panel
             try
@@ -61,6 +69,23 @@ namespace revit_mcp_plugin.Core
             mcpPanel.AddItem(mcp_settings_pushButtonData);
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Kemet Addons installs this plugin and manages the AI client
+        /// configuration itself; its manifest sits in the same Addins folder.
+        /// </summary>
+        private static bool KemetAddonsPresent(string pluginDir)
+        {
+            try
+            {
+                string addinsDir = Path.GetDirectoryName(pluginDir);
+                return addinsDir != null && File.Exists(Path.Combine(addinsDir, "KemetAddons.addin"));
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public Result OnShutdown(UIControlledApplication application)

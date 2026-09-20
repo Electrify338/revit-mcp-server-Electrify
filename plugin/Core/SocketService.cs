@@ -26,6 +26,10 @@ namespace revit_mcp_plugin.Core
         private UIApplication _uiApp;
         private ICommandRegistry _commandRegistry;
         private ILogger _logger;
+        // Title of the active document, refreshed on the Revit thread so the
+        // socket thread never touches the API just to name a project.
+        private volatile string _activeProject = "";
+        private bool _projectTrackingHooked;
 
         public static SocketService Instance
         {
@@ -59,6 +63,7 @@ namespace revit_mcp_plugin.Core
         public void Initialize(UIApplication uiApp)
         {
             _uiApp = uiApp;
+            HookProjectTracking(uiApp);
 
             // Initialize ExternalEventManager
             ExternalEventManager.Instance.Initialize(uiApp, _logger);
@@ -88,6 +93,41 @@ namespace revit_mcp_plugin.Core
             commandManager.LoadCommands();
 
             _logger.Info($"Socket service initialized on port {_port}");
+        }
+
+        private void HookProjectTracking(UIApplication uiApp)
+        {
+            try
+            {
+                _activeProject = uiApp.ActiveUIDocument?.Document?.Title ?? "";
+                if (_projectTrackingHooked) return;
+                uiApp.ViewActivated += (sender, e) =>
+                {
+                    try { _activeProject = e.Document?.Title ?? ""; } catch { }
+                };
+                uiApp.Application.DocumentClosed += (sender, e) =>
+                {
+                    try { _activeProject = uiApp.ActiveUIDocument?.Document?.Title ?? ""; } catch { }
+                };
+                _projectTrackingHooked = true;
+            }
+            catch (Exception ex)
+            {
+                McpLogger.Warn("SocketService", "Project tracking not available: " + ex.Message);
+            }
+        }
+
+        /// <summary>The `client` field the MCP server adds to each request (the AI app's name).</summary>
+        private static string ReadClientName(string requestJson)
+        {
+            try
+            {
+                return JObject.Parse(requestJson)["client"]?.ToString();
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private int FindAvailablePort(int startPort, int endPort)
@@ -337,9 +377,10 @@ namespace revit_mcp_plugin.Core
                 }
 
                 // Execute command.
+                string clientName = ReadClientName(requestJson);
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 try
                 {
-                    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                     object result = command.Execute(request.GetParamsObject(), request.Id);
                     stopwatch.Stop();
 
@@ -351,10 +392,12 @@ namespace revit_mcp_plugin.Core
                     }
                     catch { }
 
+                    UsageTracker.Record(request.Method, clientName, true, stopwatch.ElapsedMilliseconds, _activeProject);
                     return CreateSuccessResponse(request.Id, result);
                 }
                 catch (Exception ex)
                 {
+                    stopwatch.Stop();
                     McpLogger.Error("SocketService", $"Command '{request.Method}' failed", ex);
 
                     // Log error to dockable panel
@@ -364,6 +407,8 @@ namespace revit_mcp_plugin.Core
                             request.Method, false, ex.Message, 0);
                     }
                     catch { }
+
+                    UsageTracker.Record(request.Method, clientName, false, stopwatch.ElapsedMilliseconds, _activeProject);
 
                     return CreateErrorResponse(request.Id, JsonRPCErrorCodes.InternalError,
                         $"Command '{request.Method}' failed: {ex.Message}. Check the MCP log for details.");
