@@ -70,6 +70,18 @@ full job, so the fork remains usable on its own.
 - Server: `cd server && npm ci && npm run build:check` (typecheck) /
   `npm run build`. `server/build/` is git-ignored; the release workflow
   builds it.
+  **`npm run build` ends with `deploy-addins.mjs`, which overwrites the
+  server files of the plugin INSTALLED in `%AppData%\...\Addins\<year>\`**
+  (`index.js`, `sql-wasm.wasm`, `tool_schemas.json`), no backup. On a machine
+  whose installed plugin is a different version that leaves a mixed install.
+  Verified 2026-09-21. To build without touching the install:
+  `node esbuild.config.mjs && node generate-tool-schemas.mjs`.
+- Verified 2026-09-21 on Windows: `dotnet build mcp-servers-for-revit.sln -c "Release R26"`
+  builds clean; Release configs do not copy into the Addins folder (Debug ones do).
+  The zip layout it produces installs and updates correctly through Kemet's
+  `McpInstaller`, and Kemet's server switch drives `SocketService` by
+  reflection: `Instance`, `IsRunning`, `Port`, `Initialize(UIApplication)`,
+  `Start()`, `Stop()` are now part of the contract above - do not rename them.
 - Plugin/commandset: Windows only (Revit API NuGet packages + WPF), see
   README "Build from source". A session without Windows/.NET must say it
   could not compile rather than claim a build passed.
