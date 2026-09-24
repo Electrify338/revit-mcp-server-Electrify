@@ -68,6 +68,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# INSTALLA.bat passes -LocalZip "%~dp0"; the trailing backslash escapes the
+# closing quote, so the path arrives with a stray '"' (Test-Path: illegal characters).
+if ($LocalZip) { $LocalZip = $LocalZip.Trim().Trim('"').TrimEnd('\', '/') }
 $ProgressPreference    = 'SilentlyContinue'
 
 # When run via `irm ... | iex` the script executes in the caller's scope and a
