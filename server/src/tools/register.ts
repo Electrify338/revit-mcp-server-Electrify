@@ -37,6 +37,7 @@ import * as CreateMaterialTakeoffSchedule from "./create_material_takeoff_schedu
 import * as CreatePlaceholderSheets from "./create_placeholder_sheets.js";
 import * as CreatePointBasedElement from "./create_point_based_element.js";
 import * as CreateRevision from "./create_revision.js";
+import * as CreateRebar from "./create_rebar.js";
 import * as CreateRoom from "./create_room.js";
 import * as CreateRoomFinishSchedule from "./create_room_finish_schedule.js";
 import * as CreateSchedule from "./create_schedule.js";
@@ -71,6 +72,7 @@ import * as FindUndimensionedElements from "./find_undimensioned_elements.js";
 import * as FindUntaggedElements from "./find_untagged_elements.js";
 import * as GetAvailableFamilyTypes from "./get_available_family_types.js";
 import * as GetCompoundStructure from "./get_compound_structure.js";
+import * as GetHostRebar from "./get_host_rebar.js";
 import * as GetElementsByWorkset from "./get_elements_by_workset.js";
 import * as GetCurrentViewElements from "./get_current_view_elements.js";
 import * as GetCurrentViewInfo from "./get_current_view_info.js";
@@ -84,6 +86,7 @@ import * as GetMaterials from "./get_materials.js";
 import * as GetPhases from "./get_phases.js";
 import * as GetProjectInfo from "./get_project_info.js";
 import * as GetScheduleData from "./get_schedule_data.js";
+import * as GetRebarTypes from "./get_rebar_types.js";
 import * as GetSelectedElements from "./get_selected_elements.js";
 import * as GetSharedParameters from "./get_shared_parameters.js";
 import * as GetWarnings from "./get_warnings.js";
@@ -138,6 +141,22 @@ import * as WorkflowDataRoundtrip from "./workflow_data_roundtrip.js";
 import * as WorkflowModelAudit from "./workflow_model_audit.js";
 import * as WorkflowRoomDocumentation from "./workflow_room_documentation.js";
 import * as WorkflowSheetSet from "./workflow_sheet_set.js";
+import * as GetRebarQuantities from "./get_rebar_quantities.js";
+import * as GetViewRebar from "./get_view_rebar.js";
+import * as CreateRebarFromShape from "./create_rebar_from_shape.js";
+import * as PropagateRebar from "./propagate_rebar.js";
+import * as SetRebarLayout from "./set_rebar_layout.js";
+import * as SetRebarTerminations from "./set_rebar_terminations.js";
+import * as SetRebarCover from "./set_rebar_cover.js";
+import * as SpliceRebar from "./splice_rebar.js";
+import * as SplitRebarSet from "./split_rebar_set.js";
+import * as CreateAreaReinforcement from "./create_area_reinforcement.js";
+import * as CreatePathReinforcement from "./create_path_reinforcement.js";
+import * as SetRebarPresentation from "./set_rebar_presentation.js";
+import * as TagRebar from "./tag_rebar.js";
+import * as CreateBendingDetail from "./create_bending_detail.js";
+import * as CreateMultiRebarAnnotation from "./create_multi_rebar_annotation.js";
+import * as ManageRebarNumbering from "./manage_rebar_numbering.js";
 
 export async function registerTools(server: McpServer) {
   const modules = [
@@ -178,6 +197,7 @@ export async function registerTools(server: McpServer) {
     { name: "create_placeholder_sheets", module: CreatePlaceholderSheets },
     { name: "create_point_based_element", module: CreatePointBasedElement },
     { name: "create_revision", module: CreateRevision },
+    { name: "create_rebar", module: CreateRebar },
     { name: "create_room", module: CreateRoom },
     { name: "create_room_finish_schedule", module: CreateRoomFinishSchedule },
     { name: "create_schedule", module: CreateSchedule },
@@ -217,6 +237,7 @@ export async function registerTools(server: McpServer) {
     { name: "get_current_view_info", module: GetCurrentViewInfo },
     { name: "get_element_parameters", module: GetElementParameters },
     { name: "get_elements_in_spatial_volume", module: GetElementsInSpatialVolume },
+    { name: "get_host_rebar", module: GetHostRebar },
     { name: "get_linked_elements", module: GetLinkedElements },
     { name: "get_material_properties", module: GetMaterialProperties },
     { name: "get_room_openings", module: GetRoomOpenings },
@@ -225,6 +246,7 @@ export async function registerTools(server: McpServer) {
     { name: "get_phases", module: GetPhases },
     { name: "get_project_info", module: GetProjectInfo },
     { name: "get_schedule_data", module: GetScheduleData },
+    { name: "get_rebar_types", module: GetRebarTypes },
     { name: "get_selected_elements", module: GetSelectedElements },
     { name: "get_shared_parameters", module: GetSharedParameters },
     { name: "get_warnings", module: GetWarnings },
@@ -279,6 +301,22 @@ export async function registerTools(server: McpServer) {
     { name: "workflow_model_audit", module: WorkflowModelAudit },
     { name: "workflow_room_documentation", module: WorkflowRoomDocumentation },
     { name: "workflow_sheet_set", module: WorkflowSheetSet },
+    { name: "get_rebar_quantities", module: GetRebarQuantities },
+    { name: "get_view_rebar", module: GetViewRebar },
+    { name: "create_rebar_from_shape", module: CreateRebarFromShape },
+    { name: "propagate_rebar", module: PropagateRebar },
+    { name: "set_rebar_layout", module: SetRebarLayout },
+    { name: "set_rebar_terminations", module: SetRebarTerminations },
+    { name: "set_rebar_cover", module: SetRebarCover },
+    { name: "splice_rebar", module: SpliceRebar },
+    { name: "split_rebar_set", module: SplitRebarSet },
+    { name: "create_area_reinforcement", module: CreateAreaReinforcement },
+    { name: "create_path_reinforcement", module: CreatePathReinforcement },
+    { name: "set_rebar_presentation", module: SetRebarPresentation },
+    { name: "tag_rebar", module: TagRebar },
+    { name: "create_bending_detail", module: CreateBendingDetail },
+    { name: "create_multi_rebar_annotation", module: CreateMultiRebarAnnotation },
+    { name: "manage_rebar_numbering", module: ManageRebarNumbering },
   ];
 
   for (const { name, module } of modules) {

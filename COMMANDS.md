@@ -8,6 +8,7 @@
 
 - [Setup](#setup)
 - [Element Creation](#element-creation)
+- [Reinforcement](#reinforcement)
 - [Element Modification](#element-modification)
 - [Element Query & Data Extraction](#element-query--data-extraction)
 - [View & Sheet Management](#view--sheet-management)
@@ -138,6 +139,145 @@ Create 2D filled regions in views.
   ],
   "filledRegionTypeName": "Solid Black"
 }
+```
+
+---
+
+## Reinforcement
+
+Conventions (mm, which rebar a tool acts on, view points), worked examples, the test plan and the Revit API notes: [docs/REBAR.md](docs/REBAR.md).
+
+### `get_rebar_types`
+List rebar bar types, hook types, rebar shapes and cover types (read-only).
+```json
+{ "include": ["barTypes", "hookTypes"], "nameFilter": "16" }
+```
+
+### `get_host_rebar`
+Describe a host (id, or the selected element): whether it can host rebar, covers, a local frame (origin + axes) with the host's extents in it, and all rebar in it.
+```json
+{ "hostId": 123456, "includeGeometry": true }
+```
+
+### `create_rebar`
+Create shape-driven rebar from a polyline of centerline points (mm). Straight bars need `normal` (the set direction). Closed stirrups repeat the first point and use `style: "StirrupTie"`.
+```json
+{
+  "hostId": 123456, "barTypeName": "16 mm",
+  "points": [ { "x": 40, "y": -92, "z": 2458 }, { "x": 5960, "y": -92, "z": 2458 } ],
+  "normal": { "x": 0, "y": 1, "z": 0 },
+  "startHookName": "Standard - 90 deg.", "endHookName": "Standard - 90 deg.",
+  "layout": { "rule": "FixedNumber", "number": 4, "arrayLengthMm": 184 }
+}
+```
+
+### `create_rebar_from_shape`
+Place a named RebarShape and fit it to a rectangle: `origin` plus two edges. The set runs along `xDirection x yDirection`.
+```json
+{
+  "hostId": 123456, "shapeName": "M_T1", "barTypeName": "10 mm",
+  "origin": { "x": 50, "y": -110, "z": 2440 },
+  "xDirection": { "x": 0, "y": 1, "z": 0 }, "yDirection": { "x": 0, "y": 0, "z": 1 },
+  "widthMm": 220, "heightMm": 520,
+  "layout": { "rule": "MaximumSpacing", "spacingMm": 150, "arrayLengthMm": 5900 }
+}
+```
+
+### `propagate_rebar`
+Copy the rebar of one host into other hosts of the same category, adapted to each.
+```json
+{ "sourceHostId": 123456, "destinationHostIds": [123460, 123470] }
+```
+
+### `set_rebar_layout`
+Change sets: pass only what changes. Also `excludeBarIndexes`, `includeBarIndexes`, `moveBars`, `flipSet`, `flipBar`.
+```json
+{ "rebarIds": [234567], "layout": { "spacingMm": 200 } }
+```
+
+### `set_rebar_terminations`
+Hook (`"none"` removes it), end treatment, crank (2026+), orientation and rotation at the `start` and / or `end` of the bar.
+```json
+{ "rebarIds": [234567], "start": { "hook": "Standard - 90 deg.", "orientation": "Left" }, "end": { "hook": "none" } }
+```
+
+### `set_rebar_cover`
+Cover by type name or by distance (the cover type is created if missing). `faces`: `all`, `top`, `bottom`, `other`, `exterior`, `interior`.
+```json
+{ "hostIds": [123456], "distanceMm": 50, "faces": ["bottom"] }
+```
+
+### `splice_rebar`
+Lap splices (Revit 2025+). Actions: `by_rules`, `at_points`, `unify`, `remove`, `get_chain`.
+```json
+{ "action": "by_rules", "hostIds": [123456], "maxBarLengthMm": 12000 }
+```
+
+### `split_rebar_set`
+Split a set at bar positions (Revit 2026.3+). Each index is the last bar of a part.
+```json
+{ "rebarId": 234567, "barIndexes": [4, 14] }
+```
+
+### `create_area_reinforcement`
+Four-layer mesh in a floor, foundation slab or wall; whole host or a `boundary`. `convertToRebar` leaves ordinary rebar sets.
+```json
+{
+  "hostId": 345678, "barTypeName": "12 mm",
+  "layers": { "topMajor": { "spacingMm": 200 }, "topMinor": { "spacingMm": 200 },
+              "bottomMajor": { "spacingMm": 150 }, "bottomMinor": { "active": false } }
+}
+```
+
+### `create_path_reinforcement`
+Bars laid square to a path.
+```json
+{
+  "hostId": 345678, "barTypeName": "12 mm", "barLengthMm": 1500, "spacingMm": 150,
+  "points": [ { "x": 0, "y": 3000, "z": 3000 }, { "x": 6000, "y": 3000, "z": 3000 } ]
+}
+```
+
+### `get_view_rebar`
+Rebar visible in a view, the view's u/v frame and each set's `boxUv` in it. Call before the detailing tools.
+```json
+{ "hostIds": [123456], "parameterNames": ["Comments"] }
+```
+
+### `get_rebar_quantities`
+Sets, bars, total length and nominal weight. `groupBy`: `barType`, `host`, `partition`, `shape`, `mark`, `none`.
+```json
+{ "groupBy": "barType", "activeViewOnly": false }
+```
+
+### `set_rebar_presentation`
+Presentation mode (`All`, `FirstLast`, `Middle`, `Select`, `Default`), hidden bars and view-unobscured in one view.
+```json
+{ "hostIds": [123456], "mode": "FirstLast", "unobscured": true }
+```
+
+### `tag_rebar`
+Rebar tags. Simple form: an offset from each rebar's centre in the view. Exact form: `tags` with `head`, `leaderEnd`, `leaderElbow` as `{u, v}` or `{x, y, z}`.
+```json
+{ "hostIds": [123456], "tagTypeName": "Structural Rebar Tag : Type & Number", "offsetMm": { "v": -300 } }
+```
+
+### `create_bending_detail`
+Bending details (Revit 2024+). Actions: `create` (given positions, or stacked rows below the rebar), `move`, `list`.
+```json
+{ "rebarIds": [234567, 234568], "typeName": "Bending Detail 1", "gapBelowMm": 600, "rowSpacingMm": 1150 }
+```
+
+### `create_multi_rebar_annotation`
+One dimension line across the bars of a set with a single tag.
+```json
+{ "rebarIds": [234570], "dimensionDirection": "horizontal", "tagHead": { "u": 3000, "v": 1800 } }
+```
+
+### `manage_rebar_numbering`
+Rebar numbers per partition. Actions: `list`, `remove_gaps`, `shift`, `change_number`, `move_partition`, `append`, `merge`, `assign`, `set_method`.
+```json
+{ "action": "shift", "partition": "B1", "firstNumber": 101 }
 ```
 
 ---

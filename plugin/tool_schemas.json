@@ -993,6 +993,135 @@
     }
   },
   {
+    "name": "create_area_reinforcement",
+    "description": "Create area reinforcement (a mesh of bars in up to four layers) in a structural floor, foundation slab or wall: over the whole host, or inside a boundary.\n- Layers: topMajor, topMinor, bottomMajor, bottomMinor. In a wall, 'top' is the exterior face and 'bottom' the interior. Major bars run along majorDirection, minor bars square to it.\n- Without 'layers' all four layers use barTypeName at the type's default spacing.\n- convertToRebar: true removes the area system and leaves ordinary rebar sets that can be edited, tagged and scheduled individually.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hostId": {
+          "type": "number",
+          "description": "Structural floor, foundation slab or wall. If omitted, the single selected element is used."
+        },
+        "barTypeName": {
+          "type": "string",
+          "description": "Rebar bar type name. Provide this or barTypeId."
+        },
+        "barTypeId": {
+          "type": "number",
+          "description": "Rebar bar type element ID."
+        },
+        "hookTypeName": {
+          "type": "string",
+          "description": "Hook type for the bar ends. Omit for no hooks."
+        },
+        "hookTypeId": {
+          "type": "number"
+        },
+        "majorDirection": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "additionalProperties": false,
+          "description": "Direction of the major bars, in the plane of the host. Default: world X for slabs, along the wall for walls."
+        },
+        "boundary": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "description": "X in mm"
+              },
+              "y": {
+                "type": "number",
+                "description": "Y in mm"
+              },
+              "z": {
+                "type": "number",
+                "description": "Z in mm"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 3,
+          "description": "Closed outline to reinforce, model coordinates in mm, on the host's face. Omit to reinforce the whole host."
+        },
+        "layers": {
+          "type": "object",
+          "properties": {
+            "topMajor": {
+              "type": "object",
+              "properties": {
+                "active": {
+                  "type": "boolean",
+                  "description": "Whether this layer has bars."
+                },
+                "spacingMm": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Bar spacing in this layer, mm."
+                },
+                "barTypeName": {
+                  "type": "string",
+                  "description": "Bar type of this layer."
+                }
+              },
+              "additionalProperties": false
+            },
+            "topMinor": {
+              "$ref": "#/properties/layers/properties/topMajor"
+            },
+            "bottomMajor": {
+              "$ref": "#/properties/layers/properties/topMajor"
+            },
+            "bottomMinor": {
+              "$ref": "#/properties/layers/properties/topMajor"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Per-layer settings."
+        },
+        "areaReinforcementTypeName": {
+          "type": "string",
+          "description": "Area reinforcement type name. Default: the model's default."
+        },
+        "areaReinforcementTypeId": {
+          "type": "number"
+        },
+        "convertToRebar": {
+          "type": "boolean",
+          "description": "Replace the area system with ordinary rebar sets. Default false."
+        },
+        "showUnobscuredInActiveView": {
+          "type": "boolean",
+          "description": "Show the bars through the concrete in the active view. Default false."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
     "name": "create_array",
     "description": "Create linear or radial arrays of elements.",
     "input_schema": {
@@ -1047,6 +1176,134 @@
         "arrayType",
         "count"
       ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "create_bending_detail",
+    "description": "Rebar bending details in a view (Revit 2024+): the drawn bar shape with its segment dimensions. Actions:\n- create (default): one bending detail per rebar. Give 'items' with a position each, or just rebarIds / hostIds / the selection and they are stacked in rows below the rebar: the first row gapBelowMm under the lowest rebar, the next ones rowSpacingMm further down, each centred under the rebar it shows.\n- move: reposition or rotate an existing bending detail.\n- list: the bending details in the view with their rebar, position and extents.\nPositions are view points {u, v} or model points {x, y, z} (see get_view_rebar). Bending details are annotations, so they may sit outside the crop region. Bending detail types: get_rebar_types with include ['bendingDetailTypes'].",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "create",
+            "move",
+            "list"
+          ],
+          "description": "Default create."
+        },
+        "viewId": {
+          "type": "number",
+          "description": "View to work in. Default: the active view."
+        },
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Rebar element IDs."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs: acts on all rebar in these hosts. If rebarIds and hostIds are both omitted, the selection in Revit is used."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rebarId": {
+                "type": "number",
+                "description": "Rebar the bending detail shows."
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "u": {
+                    "type": "number",
+                    "description": "View coordinate along the view's right direction, mm"
+                  },
+                  "v": {
+                    "type": "number",
+                    "description": "View coordinate along the view's up direction, mm"
+                  },
+                  "x": {
+                    "type": "number",
+                    "description": "Model X, mm (use x/y/z instead of u/v)"
+                  },
+                  "y": {
+                    "type": "number",
+                    "description": "Model Y, mm"
+                  },
+                  "z": {
+                    "type": "number",
+                    "description": "Model Z, mm"
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Where to place it. Omit to let it be stacked in the rows."
+              },
+              "rotationDeg": {
+                "type": "number",
+                "description": "Rotation in the view, degrees. Default 0."
+              },
+              "barIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Which bar of the set it represents. Default: the first one Revit accepts."
+              }
+            },
+            "required": [
+              "rebarId"
+            ],
+            "additionalProperties": false
+          },
+          "description": "create: one entry per bending detail, in row order. Used instead of rebarIds / hostIds."
+        },
+        "typeName": {
+          "type": "string",
+          "description": "create: bending detail type name. Default: the first type in the model."
+        },
+        "typeId": {
+          "type": "number",
+          "description": "create: bending detail type element ID."
+        },
+        "gapBelowMm": {
+          "type": "number",
+          "description": "create: clear distance from the lowest rebar down to the first row, mm. Default 600."
+        },
+        "rowSpacingMm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "create: distance between rows, mm. Default 1150."
+        },
+        "startV": {
+          "type": "number",
+          "description": "create: view v coordinate of the first row, mm, instead of gapBelowMm."
+        },
+        "centerOnRebar": {
+          "type": "boolean",
+          "description": "create: after placing, shift each detail sideways so its centre lines up with its rebar. Default true."
+        },
+        "bendingDetailId": {
+          "type": "number",
+          "description": "move: the bending detail to move."
+        },
+        "position": {
+          "$ref": "#/properties/items/items/properties/position",
+          "description": "move: new position."
+        },
+        "rotationDeg": {
+          "type": "number",
+          "description": "move: new rotation, degrees."
+        }
+      },
       "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
@@ -1833,6 +2090,198 @@
     }
   },
   {
+    "name": "create_multi_rebar_annotation",
+    "description": "Create a multi-rebar annotation in a view: one dimension line across the bars of a set (or several sets) with a single rebar tag. The usual call-out for stirrups along a beam or bars in a slab.\n- The dimension line must run across the bars: for stirrups in a beam elevation that is 'horizontal'.\n- Without positions, the dimension line goes 300 mm below the rebar and the tag 600 mm below.\n- The annotation type sets the tag and dimension style: get_rebar_types with include ['multiRebarAnnotationTypes'].\nReturns the annotation, dimension and tag ids.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "viewId": {
+          "type": "number",
+          "description": "View to annotate in. Default: the active view."
+        },
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Rebar element IDs."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs: acts on all rebar in these hosts. If rebarIds and hostIds are both omitted, the selection in Revit is used."
+        },
+        "dimensionDirection": {
+          "type": "string",
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "description": "Direction of the dimension line in the view. Default horizontal."
+        },
+        "dimensionLineOrigin": {
+          "type": "object",
+          "properties": {
+            "u": {
+              "type": "number",
+              "description": "View coordinate along the view's right direction, mm"
+            },
+            "v": {
+              "type": "number",
+              "description": "View coordinate along the view's up direction, mm"
+            },
+            "x": {
+              "type": "number",
+              "description": "Model X, mm (use x/y/z instead of u/v)"
+            },
+            "y": {
+              "type": "number",
+              "description": "Model Y, mm"
+            },
+            "z": {
+              "type": "number",
+              "description": "Model Z, mm"
+            }
+          },
+          "additionalProperties": false,
+          "description": "A point the dimension line passes through."
+        },
+        "tagHead": {
+          "$ref": "#/properties/dimensionLineOrigin",
+          "description": "Tag head position."
+        },
+        "tagHasLeader": {
+          "type": "boolean",
+          "description": "Give the tag a leader. Default false."
+        },
+        "dimensionStyle": {
+          "type": "string",
+          "enum": [
+            "Linear",
+            "LinearFixed"
+          ],
+          "description": "Linear = aligned to the bars (default). LinearFixed = horizontal or vertical in the view."
+        },
+        "typeName": {
+          "type": "string",
+          "description": "Multi-rebar annotation type name. Default: the model's default."
+        },
+        "typeId": {
+          "type": "number",
+          "description": "Multi-rebar annotation type element ID."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "create_path_reinforcement",
+    "description": "Create path reinforcement in a structural floor, foundation slab or wall: equal bars laid square to a path and spaced along it, e.g. top bars over a support line or bars along a slab edge.\n- points is the path (2 or more points, model mm, on the host's face). The bars extend to one side of it; flip puts them on the other side.\n- convertToRebar: true removes the path system and leaves ordinary rebar sets.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hostId": {
+          "type": "number",
+          "description": "Structural floor, foundation slab or wall. If omitted, the single selected element is used."
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "description": "X in mm"
+              },
+              "y": {
+                "type": "number",
+                "description": "Y in mm"
+              },
+              "z": {
+                "type": "number",
+                "description": "Z in mm"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 2,
+          "description": "The path the bars are laid along, model coordinates, mm."
+        },
+        "barTypeName": {
+          "type": "string",
+          "description": "Rebar bar type name. Provide this or barTypeId."
+        },
+        "barTypeId": {
+          "type": "number",
+          "description": "Rebar bar type element ID."
+        },
+        "barLengthMm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Length of each bar, square to the path, mm. Default: the type's default."
+        },
+        "spacingMm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Bar spacing along the path, mm. Default: the type's default."
+        },
+        "flip": {
+          "type": "boolean",
+          "description": "Put the bars on the other side of the path. Default false."
+        },
+        "startHookName": {
+          "type": "string",
+          "description": "Hook type at the start of each bar. Omit for no hook."
+        },
+        "startHookId": {
+          "type": "number"
+        },
+        "endHookName": {
+          "type": "string",
+          "description": "Hook type at the end of each bar. Omit for no hook."
+        },
+        "endHookId": {
+          "type": "number"
+        },
+        "shapeName": {
+          "type": "string",
+          "description": "RebarShape for the bars. Default: a straight shape fitting the hooks."
+        },
+        "shapeId": {
+          "type": "number"
+        },
+        "pathReinforcementTypeName": {
+          "type": "string",
+          "description": "Path reinforcement type name. Default: the model's default."
+        },
+        "pathReinforcementTypeId": {
+          "type": "number"
+        },
+        "convertToRebar": {
+          "type": "boolean",
+          "description": "Replace the path system with ordinary rebar sets. Default false."
+        },
+        "showUnobscuredInActiveView": {
+          "type": "boolean",
+          "description": "Show the bars through the concrete in the active view. Default false."
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
     "name": "create_placeholder_sheets",
     "description": "Create multiple placeholder sheets with sequential numbering.",
     "input_schema": {
@@ -1981,6 +2430,346 @@
       },
       "required": [
         "data"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "create_rebar",
+    "description": "Create shape-driven rebar (one bar or a set) in a concrete host from a polyline of bar centerline points in model coordinates (mm).\nWorkflow: get_rebar_types for valid names, get_host_rebar for the host's frame, extents and covers, then compute points inside the cover.\n- Straight bar: 2 points plus 'normal'. Bent bar (L, U): 3+ points in one plane. Closed stirrup: repeat the first point at the end, style 'StirrupTie'.\n- 'normal' is square to the bar's plane and is the direction a set is laid out along (stirrups: along the beam; bottom bars: across it).\n- Revit picks or creates the matching RebarShape unless shapeName is given.\n- Warnings Revit raises are returned in revitWarnings; errors roll the change back.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hostId": {
+          "type": "number",
+          "description": "Host element ID. If omitted, the single selected element is used."
+        },
+        "barTypeName": {
+          "type": "string",
+          "description": "Rebar bar type name, e.g. '16M' or '16 mm'. Provide this or barTypeId."
+        },
+        "barTypeId": {
+          "type": "number",
+          "description": "Rebar bar type element ID."
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "Standard",
+            "StirrupTie"
+          ],
+          "description": "Standard for main bars, StirrupTie for stirrups/ties. Default Standard."
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "description": "X in mm"
+              },
+              "y": {
+                "type": "number",
+                "description": "Y in mm"
+              },
+              "z": {
+                "type": "number",
+                "description": "Z in mm"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 2,
+          "description": "Bar centerline as a polyline, mm, model coordinates. At least 2 points."
+        },
+        "normal": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "additionalProperties": false,
+          "description": "Unit vector square to the bar plane; the set direction. Required for straight bars, derived from the points otherwise."
+        },
+        "shapeName": {
+          "type": "string",
+          "description": "Force this RebarShape (must fit the points and hooks)."
+        },
+        "shapeId": {
+          "type": "number",
+          "description": "Force this RebarShape by element ID."
+        },
+        "startHookName": {
+          "type": "string",
+          "description": "Hook type at the first point, e.g. 'Standard - 90 deg.'. Omit for no hook."
+        },
+        "startHookId": {
+          "type": "number"
+        },
+        "endHookName": {
+          "type": "string",
+          "description": "Hook type at the last point. Omit for no hook."
+        },
+        "endHookId": {
+          "type": "number"
+        },
+        "startHookOrientation": {
+          "type": "string",
+          "enum": [
+            "Left",
+            "Right"
+          ],
+          "description": "Side the start hook turns to: stand at that end of the bar, bar behind you, normal pointing up; Left or Right. Default Left."
+        },
+        "endHookOrientation": {
+          "type": "string",
+          "enum": [
+            "Left",
+            "Right"
+          ],
+          "description": "Same for the end hook. Default Left."
+        },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "rule": {
+              "type": "string",
+              "enum": [
+                "Single",
+                "FixedNumber",
+                "MaximumSpacing",
+                "NumberWithSpacing",
+                "MinimumClearSpacing"
+              ],
+              "description": "Single = one bar. FixedNumber needs number + arrayLengthMm. MaximumSpacing and MinimumClearSpacing need spacingMm + arrayLengthMm. NumberWithSpacing needs number + spacingMm."
+            },
+            "number": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of bars in the set."
+            },
+            "spacingMm": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Spacing between bars, mm."
+            },
+            "arrayLengthMm": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Length the set is spread over along the normal, mm."
+            },
+            "barsOnNormalSide": {
+              "type": "boolean",
+              "description": "Lay the set out on the normal's side of the first bar. Default true."
+            },
+            "includeFirstBar": {
+              "type": "boolean",
+              "description": "Default true."
+            },
+            "includeLastBar": {
+              "type": "boolean",
+              "description": "Default true."
+            }
+          },
+          "required": [
+            "rule"
+          ],
+          "additionalProperties": false,
+          "description": "How many bars and how they are spaced. Default Single."
+        },
+        "useExistingShapeIfPossible": {
+          "type": "boolean",
+          "description": "Reuse a matching RebarShape. Default true."
+        },
+        "createNewShape": {
+          "type": "boolean",
+          "description": "Create a RebarShape when none matches. Default true."
+        },
+        "showUnobscuredInActiveView": {
+          "type": "boolean",
+          "description": "Show the rebar unobscured (through concrete) in the active view. Default false."
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "create_rebar_from_shape",
+    "description": "Create rebar as an instance of a named RebarShape and fit it to a rectangle. Easier than create_rebar for stirrups and standard shapes: no bar-by-bar points.\n- origin is one corner of the rectangle; xDirection and yDirection are its two edges (square to each other); widthMm and heightMm their lengths. The shape's own x/y axes map to these.\n- The rectangle is the bar's outline, so place it inside the cover (see get_host_rebar for covers and extents).\n- A set is laid out along xDirection x yDirection (the rectangle's normal): for a beam stirrup, that is along the beam.\n- Hooks come from the shape; change them with set_rebar_terminations.\n- Revit warnings are returned in revitWarnings; errors roll the change back.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hostId": {
+          "type": "number",
+          "description": "Host element ID. If omitted, the single selected element is used."
+        },
+        "shapeName": {
+          "type": "string",
+          "description": "RebarShape name (see get_rebar_types). Provide this or shapeId."
+        },
+        "shapeId": {
+          "type": "number",
+          "description": "RebarShape element ID."
+        },
+        "barTypeName": {
+          "type": "string",
+          "description": "Rebar bar type name. Provide this or barTypeId."
+        },
+        "barTypeId": {
+          "type": "number",
+          "description": "Rebar bar type element ID."
+        },
+        "origin": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number",
+              "description": "X in mm"
+            },
+            "y": {
+              "type": "number",
+              "description": "Y in mm"
+            },
+            "z": {
+              "type": "number",
+              "description": "Z in mm"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "additionalProperties": false,
+          "description": "Lower-left corner of the rectangle, model coordinates, mm."
+        },
+        "xDirection": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "additionalProperties": false,
+          "description": "Direction of the rectangle's first edge (the shape's x axis)."
+        },
+        "yDirection": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "$ref": "#/properties/xDirection/properties/x"
+            },
+            "y": {
+              "$ref": "#/properties/xDirection/properties/y"
+            },
+            "z": {
+              "$ref": "#/properties/xDirection/properties/z"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "additionalProperties": false,
+          "description": "Direction of the second edge (the shape's y axis), square to xDirection."
+        },
+        "widthMm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Rectangle size along xDirection, mm. With heightMm, the shape is stretched to fit; omit both to keep the shape's default size."
+        },
+        "heightMm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Rectangle size along yDirection, mm."
+        },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "rule": {
+              "type": "string",
+              "enum": [
+                "Single",
+                "FixedNumber",
+                "MaximumSpacing",
+                "NumberWithSpacing",
+                "MinimumClearSpacing"
+              ],
+              "description": "Single = one bar. FixedNumber needs number + arrayLengthMm. MaximumSpacing and MinimumClearSpacing need spacingMm + arrayLengthMm. NumberWithSpacing needs number + spacingMm."
+            },
+            "number": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of bars in the set."
+            },
+            "spacingMm": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Spacing between bars, mm."
+            },
+            "arrayLengthMm": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Length the set is spread over, mm."
+            },
+            "barsOnNormalSide": {
+              "type": "boolean",
+              "description": "Lay the set out on the normal's side of the first bar."
+            },
+            "includeFirstBar": {
+              "type": "boolean"
+            },
+            "includeLastBar": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "description": "How many bars and how they are spaced. Default Single."
+        },
+        "showUnobscuredInActiveView": {
+          "type": "boolean",
+          "description": "Show the rebar through the concrete in the active view. Default false."
+        }
+      },
+      "required": [
+        "origin",
+        "xDirection",
+        "yDirection"
       ],
       "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
@@ -3814,6 +4603,25 @@
     }
   },
   {
+    "name": "get_host_rebar",
+    "description": "Describe a rebar host (beam, column, wall, floor, foundation) and the rebar already in it. Returns whether it can host rebar, its rebar covers, a local frame (origin + x/y/z axes, mm) with the host's extents in that frame so bar points can be computed for create_rebar, and every rebar in it (bar type, shape, layout, quantity, spacing, lengths, hooks). Read-only.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hostId": {
+          "type": "number",
+          "description": "Element ID of the host. If omitted, the single selected element is used."
+        },
+        "includeGeometry": {
+          "type": "boolean",
+          "description": "Also return the centerline of the first bar of each rebar set (mm). Default false."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
     "name": "get_linked_elements",
     "description": "Query elements from linked Revit models by category.",
     "input_schema": {
@@ -3961,6 +4769,89 @@
     }
   },
   {
+    "name": "get_rebar_quantities",
+    "description": "Rebar take-off: number of sets and bars, total length (m) and nominal steel weight (kg), grouped by bar type, host, partition, shape or rebar number. Covers rebar sets and the bars of area / path reinforcement. Scope: the given hosts, one view, or the whole model. Read-only.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Only rebar in these host elements."
+        },
+        "viewId": {
+          "type": "number",
+          "description": "Only rebar visible in this view."
+        },
+        "activeViewOnly": {
+          "type": "boolean",
+          "description": "Only rebar visible in the active view. Default false (whole model)."
+        },
+        "groupBy": {
+          "type": "string",
+          "enum": [
+            "barType",
+            "host",
+            "partition",
+            "shape",
+            "mark",
+            "none"
+          ],
+          "description": "How to group the totals. 'mark' groups by Rebar Number. Default barType."
+        },
+        "includeElements": {
+          "type": "boolean",
+          "description": "Also list every rebar element with its own length and weight. Default false."
+        },
+        "densityKgPerM3": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Steel density for the weight. Default 7850."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_rebar_types",
+    "description": "List what rebar and its annotation are made from in the open model. By default: bar types (diameters, bend diameters), hook types (angle, style), rebar shapes (name, style) and cover types (distance). On request: end treatments, crank types (2026+), splice types (2025+), rebar tag types, bending detail types (2024+), multi-rebar annotation types, area and path reinforcement types. Read-only. Call this before the other rebar tools to pick valid names.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "barTypes",
+              "hookTypes",
+              "shapes",
+              "coverTypes",
+              "endTreatmentTypes",
+              "crankTypes",
+              "spliceTypes",
+              "rebarTagTypes",
+              "bendingDetailTypes",
+              "multiRebarAnnotationTypes",
+              "areaReinforcementTypes",
+              "pathReinforcementTypes"
+            ]
+          },
+          "description": "Which lists to return. Default: barTypes, hookTypes, shapes, coverTypes. The others are returned only when asked for."
+        },
+        "nameFilter": {
+          "type": "string",
+          "description": "Only items whose name contains this text (case-insensitive), e.g. '16' or 'Stirrup'."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
     "name": "get_room_openings",
     "description": "Find doors and/or windows in rooms with full parameter extraction. Fast phase-aware lookup via FromRoom/ToRoom.",
     "input_schema": {
@@ -4064,6 +4955,40 @@
         "categoryFilter": {
           "type": "string",
           "description": "Optional category name filter."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_view_rebar",
+    "description": "List the rebar visible in a view, with what the detailing tools need. Read-only. Call it before tag_rebar, create_bending_detail, create_multi_rebar_annotation or set_rebar_presentation.\nReturns the view frame (origin, right, up: a view point {u, v} in mm = origin + u*right + v*up) and per rebar: host, bar type, shape, rebar number, quantity, spacing, presentation mode, hidden bars, how many bars can be tagged, and its extents boxUv in the view. Also the extents of each host.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "viewId": {
+          "type": "number",
+          "description": "View to read. Default: the active view."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Only rebar hosted by these elements."
+        },
+        "parameterNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra instance parameters to read from each rebar by name, e.g. a project's bar-position parameter."
+        },
+        "maxElements": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "description": "Maximum rebar elements to describe. Default 300."
         }
       },
       "additionalProperties": false,
@@ -4429,6 +5354,89 @@
       "required": [
         "action"
       ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "manage_rebar_numbering",
+    "description": "Read and renumber rebar numbers (the Rebar Number used as bar mark). Revit numbers rebar per partition and gives identical bars the same number. Actions:\n- list (default): partitions, the number ranges in use (more than one range = gaps) and how many rebar elements each holds.\n- remove_gaps: close the gaps in a partition.\n- shift: make a partition start at firstNumber.\n- change_number: change one number to another that is not used yet.\n- move_partition: rename a partition, numbers kept.\n- append: add one partition's rebar to the end of another (the appended rebar is renumbered).\n- merge: merge two or more partitions into a new one, renumbered without gaps.\n- assign: put rebar into a partition.\n- set_method: the project's numbering method (Revit 2026+).\nThe default partition has an empty name: pass \"\" for it. Returns the partitions after the change.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "list",
+            "remove_gaps",
+            "shift",
+            "change_number",
+            "move_partition",
+            "append",
+            "merge",
+            "assign",
+            "set_method"
+          ],
+          "description": "Default list."
+        },
+        "partition": {
+          "type": "string",
+          "description": "Partition name for remove_gaps, shift, change_number and assign."
+        },
+        "firstNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "shift: the new lowest number."
+        },
+        "fromNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "change_number: the number to change."
+        },
+        "toNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "change_number: the new number (must be unused)."
+        },
+        "fromPartition": {
+          "type": "string",
+          "description": "move_partition / append: the source partition."
+        },
+        "toPartition": {
+          "type": "string",
+          "description": "move_partition / merge: the new partition name. append: the existing target partition."
+        },
+        "sourcePartitions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "merge: the partitions to merge (two or more)."
+        },
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Rebar element IDs."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs: acts on all rebar in these hosts. If rebarIds and hostIds are both omitted, the selection in Revit is used."
+        },
+        "numberingMethod": {
+          "type": "string",
+          "enum": [
+            "AssignUniqueNumberPerSet",
+            "MatchSetsWithIdenticalBars",
+            "NumberBarsIndividually"
+          ],
+          "description": "set_method: how Revit numbers rebar in this project."
+        }
+      },
       "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
@@ -5050,6 +6058,39 @@
         "viewId",
         "positionX",
         "positionY"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "propagate_rebar",
+    "description": "Copy the rebar of one host into other hosts and adapt it to each (Revit's Propagate Rebar). Use it to reinforce one beam / column / footing, then repeat it on the similar ones.\n- Source: rebarIds, or all rebar in sourceHostId, or the selection. All source rebar must sit in one host.\n- Destinations must be the same category as the source host and able to host rebar. Bars follow the destination's size, so hosts of a different length or section get adapted bars.\n- Rebar inside a group is skipped. Each destination reports its new rebar ids or why it failed; the whole call is one undo step.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "destinationHostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "description": "Host element IDs to copy the rebar into."
+        },
+        "sourceHostId": {
+          "type": "number",
+          "description": "Host whose rebar is copied (all of it)."
+        },
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Copy only these rebar elements (all from one host)."
+        }
+      },
+      "required": [
+        "destinationHostIds"
       ],
       "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
@@ -5942,6 +6983,319 @@
     }
   },
   {
+    "name": "set_rebar_cover",
+    "description": "Set the rebar cover of host elements (beams, columns, walls, floors, foundations). Pick a cover type by name or id, or give distanceMm: a cover type with that distance is reused, or created if the model has none.\n- faces: 'all' (default) or any of top, bottom, other, exterior, interior. Beams and floors have top / bottom / other; walls have exterior / interior / other.\n- Rebar constrained to the cover moves with it. Returns each host's covers after the change.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs. If omitted, the single selected element is used."
+        },
+        "coverTypeName": {
+          "type": "string",
+          "description": "Rebar cover type name (see get_rebar_types)."
+        },
+        "coverTypeId": {
+          "type": "number",
+          "description": "Rebar cover type element ID."
+        },
+        "distanceMm": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Cover distance in mm, used when no cover type is named."
+        },
+        "faces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "all",
+              "top",
+              "bottom",
+              "other",
+              "exterior",
+              "interior"
+            ]
+          },
+          "description": "Which faces get the cover. Default ['all']."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "set_rebar_layout",
+    "description": "Change existing shape-driven rebar sets: layout rule, number of bars, spacing, distribution length, which bars are included, single bars moved, or the set flipped.\n- layout: pass only what changes; the rest keeps its current value (e.g. {spacingMm: 150} on a MaximumSpacing set, {number: 5} on a FixedNumber set). A value the set's rule does not use is refused: pass the rule too to switch it. Turning a single bar into a set needs the rule and its values.\n- Bar indexes are 0-based positions in the set (see barPositions in get_host_rebar).\n- Returns each set's layout after the change. Revit errors roll everything back.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Rebar element IDs."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs: acts on all rebar in these hosts. If rebarIds and hostIds are both omitted, the selection in Revit is used."
+        },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "rule": {
+              "type": "string",
+              "enum": [
+                "Single",
+                "FixedNumber",
+                "MaximumSpacing",
+                "NumberWithSpacing",
+                "MinimumClearSpacing"
+              ],
+              "description": "Single = one bar. FixedNumber needs number + arrayLengthMm. MaximumSpacing and MinimumClearSpacing need spacingMm + arrayLengthMm. NumberWithSpacing needs number + spacingMm."
+            },
+            "number": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of bars in the set."
+            },
+            "spacingMm": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Spacing between bars, mm."
+            },
+            "arrayLengthMm": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Length the set is spread over, mm."
+            },
+            "barsOnNormalSide": {
+              "type": "boolean",
+              "description": "Lay the set out on the normal's side of the first bar."
+            },
+            "includeFirstBar": {
+              "type": "boolean"
+            },
+            "includeLastBar": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "description": "New layout values."
+        },
+        "excludeBarIndexes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Bars to remove from the set (kept as empty positions)."
+        },
+        "includeBarIndexes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Bars to put back into the set."
+        },
+        "moveBars": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Bar position in the set."
+              },
+              "offsetMm": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "description": "X in mm"
+                  },
+                  "y": {
+                    "type": "number",
+                    "description": "Y in mm"
+                  },
+                  "z": {
+                    "type": "number",
+                    "description": "Z in mm"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "z"
+                ],
+                "additionalProperties": false,
+                "description": "Move vector in model coordinates, mm. Added to any earlier move."
+              }
+            },
+            "required": [
+              "index",
+              "offsetMm"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Move individual bars of the set."
+        },
+        "resetMovedBarIndexes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Bars to put back to their default position."
+        },
+        "flipSet": {
+          "type": "boolean",
+          "description": "Flip the set to the other side of its first bar (Revit 2023.1+)."
+        },
+        "flipBar": {
+          "type": "boolean",
+          "description": "Flip the bar end for end, swapping start and end (Revit 2026.1+)."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "set_rebar_presentation",
+    "description": "Set how rebar sets are drawn in one view: which bars of each set show, and whether rebar shows through the concrete.\n- mode: All = every bar, FirstLast = the two end bars, Middle = one bar in the middle, Select = only the bars left unhidden, Default = back to the project's setting.\n- hideBarIndexes / showBarIndexes hide or show single bars (0-based) and switch the set to Select.\n- unobscured: true shows rebar in front of the host's concrete (Revit's \"View Unobscured\").\n- Without rebarIds, hostIds or a selection, all rebar visible in the view is changed. Single bars and sets seen end-on are skipped for the mode, with the reason.\nOnly bars that are drawn can be tagged, so set this before tag_rebar.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "viewId": {
+          "type": "number",
+          "description": "View to change. Default: the active view."
+        },
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Rebar element IDs."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs: acts on all rebar in these hosts. If rebarIds and hostIds are both omitted, the selection in Revit is used."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "All",
+            "FirstLast",
+            "Middle",
+            "Select",
+            "Default"
+          ],
+          "description": "Presentation mode for the sets."
+        },
+        "hideBarIndexes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Bars to hide in this view."
+        },
+        "showBarIndexes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Bars to show again in this view."
+        },
+        "unobscured": {
+          "type": "boolean",
+          "description": "Show the rebar through the host's concrete in this view."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "set_rebar_terminations",
+    "description": "Change what is at the ends of existing rebar: hook, end treatment or crank, the side it turns to and its rotation. 'start' and 'end' are the bar's own ends (first and last point of its centerline).\n- A hook must suit the bar: Standard hooks on standard bars, Stirrup/Tie hooks on stirrups, and allowed by the bar type.\n- An end holds one of hook, crank or end treatment: setting one clears the others at that end.\n- Returns the terminations after the change. Revit errors roll everything back.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Rebar element IDs."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs: acts on all rebar in these hosts. If rebarIds and hostIds are both omitted, the selection in Revit is used."
+        },
+        "start": {
+          "type": "object",
+          "properties": {
+            "hook": {
+              "type": "string",
+              "description": "Hook type name (see get_rebar_types), or 'none' to remove the hook."
+            },
+            "hookId": {
+              "type": "number",
+              "description": "Hook type element ID (instead of hook)."
+            },
+            "orientation": {
+              "type": "string",
+              "enum": [
+                "Left",
+                "Right"
+              ],
+              "description": "Side the hook or crank turns to: stand at this end, the bar behind you, the bar's normal pointing up."
+            },
+            "rotationDeg": {
+              "type": "number",
+              "description": "Out-of-plane rotation of the hook or crank, degrees."
+            },
+            "endTreatment": {
+              "type": "string",
+              "description": "End treatment type name (e.g. a threaded end), or 'none'."
+            },
+            "crank": {
+              "type": "string",
+              "description": "Crank type name, or 'none'. Revit 2026+."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Changes at the start of the bar."
+        },
+        "end": {
+          "$ref": "#/properties/start",
+          "description": "Changes at the end of the bar."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
     "name": "set_view_crop",
     "description": "Control the crop box of a view: enable/disable, set bounds from elements with offset or explicit coordinates, show/hide crop boundary.",
     "input_schema": {
@@ -5992,6 +7346,181 @@
           "description": "Reset: disable crop box."
         }
       },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "splice_rebar",
+    "description": "Lap-splice rebar (Revit 2025+). Actions:\n- by_rules (default): cut every given rebar that is longer than maxBarLengthMm into lapped pieces. Bars within the limit are left alone.\n- at_points: splice one rebar at the given points along it.\n- unify: join two bars connected by a splice back into one.\n- remove: drop the splice relation at one end of a bar (the bars keep their lengths).\n- get_chain: list the bars spliced together with a bar, with their lap lengths.\nLap length comes from the splice type and the bar type. Free-form, multiplanar, arc-shaped and grouped rebar cannot be spliced.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "by_rules",
+            "at_points",
+            "unify",
+            "remove",
+            "get_chain"
+          ],
+          "description": "Default by_rules."
+        },
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Rebar element IDs."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs: acts on all rebar in these hosts. If rebarIds and hostIds are both omitted, the selection in Revit is used."
+        },
+        "rebarId": {
+          "type": "number",
+          "description": "The rebar for at_points, remove and get_chain."
+        },
+        "maxBarLengthMm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "by_rules: longest bar allowed (stock length). Default 12000."
+        },
+        "minBarLengthMm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "by_rules: shortest piece allowed. Default 1000."
+        },
+        "runOutPosition": {
+          "type": "string",
+          "enum": [
+            "Start",
+            "End"
+          ],
+          "description": "by_rules: which end of the bar gets the short remaining piece. Default End."
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "description": "X in mm"
+              },
+              "y": {
+                "type": "number",
+                "description": "Y in mm"
+              },
+              "z": {
+                "type": "number",
+                "description": "Z in mm"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          },
+          "description": "at_points: where to splice, on or near the bar, model coordinates, mm."
+        },
+        "normal": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "additionalProperties": false,
+          "description": "at_points: direction of the bar at the splice. Default: taken from the bar."
+        },
+        "position": {
+          "type": "string",
+          "enum": [
+            "End1",
+            "Middle",
+            "End2"
+          ],
+          "description": "at_points: where the lap sits relative to the point. Middle = half each side (default); End1 = towards the start of the bar; End2 = towards the end."
+        },
+        "spliceTypeName": {
+          "type": "string",
+          "description": "Rebar splice type name (see get_rebar_types, include ['spliceTypes']). Default: the model's default splice type."
+        },
+        "spliceTypeId": {
+          "type": "number",
+          "description": "Rebar splice type element ID."
+        },
+        "firstRebarId": {
+          "type": "number",
+          "description": "unify: the first bar; the result takes its layout."
+        },
+        "secondRebarId": {
+          "type": "number",
+          "description": "unify: the bar spliced to the first one."
+        },
+        "end": {
+          "type": "string",
+          "enum": [
+            "start",
+            "end"
+          ],
+          "description": "remove: which end of the bar."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "split_rebar_set",
+    "description": "Split one rebar set into several sets at given bar positions (Revit 2026.3+), e.g. to give the stirrups near the supports a closer spacing than those at midspan: split, then set_rebar_layout on each part.\n- barIndexes are 0-based; each index is the last bar of a new set. [4, 14] on a 20-bar set gives bars 0-4, 5-14 and 15-19.\n- Free-form rebar, sets with one bar and rebar in a group cannot be split.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "rebarId": {
+          "type": "number",
+          "description": "The rebar set to split."
+        },
+        "barIndexes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 1,
+          "description": "Bar positions where the set is cut (each is the last bar of a part)."
+        },
+        "constrainSplitSets": {
+          "type": "boolean",
+          "description": "Keep each part constrained to the one before it, so they move together. Default true."
+        },
+        "splitAllSetsInSpliceChain": {
+          "type": "boolean",
+          "description": "Also split the sets lap-spliced to this one and keep the splices. Default false."
+        }
+      },
+      "required": [
+        "rebarId",
+        "barIndexes"
+      ],
       "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
@@ -6209,6 +7738,131 @@
         "tagTypeId": {
           "type": "string",
           "description": "The ID of the specific wall tag family type to use."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "tag_rebar",
+    "description": "Place structural rebar tags in a view. Each tag is attached to one bar of the set; a bar the view does not draw gives an invisible tag, so bars are tried (first, middle, last, then in order) until the tag is visible.\n- Simple: rebarIds (or hostIds / the selection) with offsetMm: each tag head goes at the centre of its rebar in the view plus the offset.\n- Exact: 'tags', one entry per tag, with head (and leaderEnd / leaderElbow when leader is true) as view points {u, v} or model points {x, y, z}.\n- Points and the rebar extents come from get_view_rebar. Tag types from get_rebar_types with include ['rebarTagTypes'].\nReturns each tag's id, the bar it took and its text; failures are listed per rebar.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "viewId": {
+          "type": "number",
+          "description": "View to tag in. Default: the active view."
+        },
+        "rebarIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Rebar element IDs."
+        },
+        "hostIds": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Host element IDs: acts on all rebar in these hosts. If rebarIds and hostIds are both omitted, the selection in Revit is used."
+        },
+        "tagTypeName": {
+          "type": "string",
+          "description": "Tag type as 'Family : Type', or just the type or family name. Default: the model's default rebar tag."
+        },
+        "tagTypeId": {
+          "type": "number",
+          "description": "Tag type element ID."
+        },
+        "leader": {
+          "type": "boolean",
+          "description": "Tags have a leader. Default false."
+        },
+        "orientation": {
+          "type": "string",
+          "enum": [
+            "Horizontal",
+            "Vertical"
+          ],
+          "description": "Tag orientation. Default Horizontal."
+        },
+        "offsetMm": {
+          "type": "object",
+          "properties": {
+            "u": {
+              "type": "number",
+              "description": "Along the view's right direction, mm."
+            },
+            "v": {
+              "type": "number",
+              "description": "Along the view's up direction, mm."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Tag head offset from the centre of each rebar in the view, mm. Default none."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rebarId": {
+                "type": "number",
+                "description": "Rebar element to tag."
+              },
+              "barIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Which bar of the set to attach to. Default: the first one that gives a visible tag."
+              },
+              "head": {
+                "type": "object",
+                "properties": {
+                  "u": {
+                    "type": "number",
+                    "description": "View coordinate along the view's right direction, mm"
+                  },
+                  "v": {
+                    "type": "number",
+                    "description": "View coordinate along the view's up direction, mm"
+                  },
+                  "x": {
+                    "type": "number",
+                    "description": "Model X, mm (use x/y/z instead of u/v)"
+                  },
+                  "y": {
+                    "type": "number",
+                    "description": "Model Y, mm"
+                  },
+                  "z": {
+                    "type": "number",
+                    "description": "Model Z, mm"
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Tag head position. Default: the rebar's centre plus offsetMm."
+              },
+              "offsetMm": {
+                "$ref": "#/properties/offsetMm",
+                "description": "Offset for this tag instead of the common one."
+              },
+              "leaderEnd": {
+                "$ref": "#/properties/tags/items/properties/head",
+                "description": "Free end of the leader (arrow tip). Omit to keep the leader attached to the bar."
+              },
+              "leaderElbow": {
+                "$ref": "#/properties/tags/items/properties/head",
+                "description": "Elbow point of the leader."
+              }
+            },
+            "required": [
+              "rebarId"
+            ],
+            "additionalProperties": false
+          },
+          "description": "One entry per tag, for exact placement. Used instead of rebarIds / hostIds."
         }
       },
       "additionalProperties": false,

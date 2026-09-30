@@ -5,6 +5,9 @@ server/node_modules/
 server/build/
 server/revit-data.db
 
+# Test patches from scripts/make-test-patch.ps1
+dist-test/
+
 # Environment variables
 .env
 .env.*

@@ -6,7 +6,7 @@
 
 ---
 
-mcp-servers-for-revit enables AI clients like Claude, Cline, and other MCP-compatible tools to read, create, modify, and delete elements in Revit projects in real time. It exposes 138 tools covering project info, model analysis, element creation, batch operations, data export, and more.
+mcp-servers-for-revit enables AI clients like Claude, Cline, and other MCP-compatible tools to read, create, modify, and delete elements in Revit projects in real time. It exposes 157 tools covering project info, model analysis, element creation, batch operations, data export, and more.
 
 > [!NOTE]
 > This is a fork of the original [revit-mcp](https://github.com/mcp-servers-for-revit/revit-mcp) project with additional tools and functionality improvements.
@@ -293,6 +293,32 @@ All tools work across all versions. The command set uses compile-time constants 
 | `create_structural_framing_system` | Beam framing systems within a boundary |
 | `create_array` | Linear or radial arrays of elements |
 
+### Reinforcement
+
+| Tool | Description |
+| ---- | ----------- |
+| `get_rebar_types` | Bar, hook, shape and cover types; on request tag, bending detail, splice, crank and area / path types |
+| `get_host_rebar` | A host's covers, local frame and extents, and the rebar in it |
+| `get_view_rebar` | Rebar visible in a view, with the view frame and each set's extents, mark and presentation |
+| `get_rebar_quantities` | Bars, total length and steel weight by bar type, host, partition, shape or mark |
+| `create_rebar` | Shape-driven rebar (single bar or set) from centerline points, with hooks and layout |
+| `create_rebar_from_shape` | A named rebar shape fitted to a rectangle |
+| `propagate_rebar` | Copy one host's rebar into other hosts of the same category |
+| `set_rebar_layout` | Rule, number, spacing, included / moved bars, flip |
+| `set_rebar_terminations` | Hooks, end treatments, cranks and their orientation |
+| `set_rebar_cover` | Rebar cover of host elements |
+| `splice_rebar` | Lap splices by maximum bar length or at points, unify, remove (Revit 2025+) |
+| `split_rebar_set` | Split a set into several sets (Revit 2026.3+) |
+| `create_area_reinforcement` | Four-layer bar mesh in a floor, foundation slab or wall |
+| `create_path_reinforcement` | Bars laid square to a path |
+| `set_rebar_presentation` | Presentation mode, hidden bars and view-unobscured per view |
+| `tag_rebar` | Structural rebar tags with head and leader placement |
+| `create_bending_detail` | Create, move or list rebar bending details (Revit 2024+) |
+| `create_multi_rebar_annotation` | One dimension plus tag across the bars of a set |
+| `manage_rebar_numbering` | Rebar numbers and partitions: list, remove gaps, shift, merge, assign |
+
+See [docs/REBAR.md](docs/REBAR.md) for conventions, examples, the test plan and the Revit API notes.
+
 ### Element Modification
 
 | Tool | Description |
@@ -468,7 +494,7 @@ mcp-servers-for-revit/
 ├── mcp-servers-for-revit.sln    # Combined solution (plugin + commandset + tests)
 ├── command.json                 # Command set manifest
 ├── server/                      # MCP server (TypeScript) - tools exposed to AI clients
-│   └── src/tools/               # One .ts file per tool (138 tools)
+│   └── src/tools/               # One .ts file per tool (157 tools)
 ├── plugin/                      # Revit add-in (C#) - TCP bridge + chat panel
 │   └── UI/                      # Dockable chat panel (XAML + code-behind)
 ├── commandset/                  # Command implementations (C#) - Revit API operations

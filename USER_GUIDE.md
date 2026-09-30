@@ -41,6 +41,25 @@
 | `create_grid` | Grid systems with spacing | "Create a 6x4 grid at 7200mm spacing" |
 | `create_level` | Levels with auto floor plan generation | "Create levels at 0, 3000, 6000, 9000mm" |
 | `create_structural_framing_system` | Beam systems with spacing | "Create beam framing at 1200mm spacing" |
+| `get_rebar_types` | Rebar bar/hook/shape/cover types, tag and bending detail types | "Which rebar bar types are in this model?" |
+| `get_host_rebar` | Host covers, frame and existing rebar | "What reinforcement is in the selected beam?" |
+| `get_view_rebar` | Rebar visible in a view, with positions in the view | "What rebar is in this section?" |
+| `get_rebar_quantities` | Bars, length and steel weight | "How much steel is in this model, by diameter?" |
+| `create_rebar` | Rebar bars and sets in a concrete host | "Add 4 bottom bars and 10mm stirrups at 150mm in beam 123456" |
+| `create_rebar_from_shape` | Rebar from a named shape fitted to a rectangle | "Add stirrups with shape M_T1 inside the cover of this beam" |
+| `propagate_rebar` | Copy rebar to similar hosts | "Copy this beam's rebar to beams 456 and 789" |
+| `set_rebar_layout` | Number, spacing, included bars | "Change the stirrup spacing to 200mm" |
+| `set_rebar_terminations` | Hooks, cranks, end treatments | "Put 90 degree hooks on both ends of the bottom bars" |
+| `set_rebar_cover` | Rebar cover of hosts | "Set the cover of the selected columns to 50mm" |
+| `splice_rebar` | Lap splices (2025+) | "Splice every bar longer than 12m in this slab" |
+| `split_rebar_set` | Split a set (2026.3+) | "Split the stirrups into end zones of 5 bars and a middle zone" |
+| `create_area_reinforcement` | Bar mesh in slabs and walls | "Add 12mm at 200 both ways, top and bottom, in this slab" |
+| `create_path_reinforcement` | Bars along a path | "Add 12mm top bars at 150, 1500 long, along this wall line" |
+| `set_rebar_presentation` | How sets show in a view | "Show only the first and last stirrup in this view" |
+| `tag_rebar` | Rebar tags | "Tag all rebar in this beam 300mm below each set" |
+| `create_bending_detail` | Bending details (2024+) | "Add bending details for this beam's bars below the elevation" |
+| `create_multi_rebar_annotation` | Dimension + tag across a set | "Annotate the stirrups with a multi-rebar annotation" |
+| `manage_rebar_numbering` | Rebar numbers and partitions | "Remove the gaps in the rebar numbering of partition B1" |
 
 ### Element Modification
 

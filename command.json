@@ -652,6 +652,101 @@
       "commandName": "duplicate_schedule",
       "description": "Duplicate a schedule by ID or name with a new name",
       "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_rebar_types",
+      "description": "List rebar bar types, hook types, shapes and cover types",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_host_rebar",
+      "description": "Describe a rebar host (covers, local frame, extents) and the rebar in it",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_rebar",
+      "description": "Create shape-driven rebar (single bar or set) in a host from centerline points",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_rebar_quantities",
+      "description": "Rebar take-off: bars, total length and weight grouped by bar type, host, partition, shape or mark",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_view_rebar",
+      "description": "Rebar visible in a view with the view frame and each set's extents, mark and presentation",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_rebar_from_shape",
+      "description": "Create rebar from a named rebar shape fitted to a rectangle",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "propagate_rebar",
+      "description": "Copy the rebar of one host into other hosts of the same category",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "set_rebar_layout",
+      "description": "Change rebar set layout: rule, number, spacing, included / moved bars, flip",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "set_rebar_terminations",
+      "description": "Change rebar hooks, end treatments, cranks and their orientation",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "set_rebar_cover",
+      "description": "Set the rebar cover of host elements",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "splice_rebar",
+      "description": "Lap-splice rebar by maximum bar length or at points, unify, remove, read splice chain",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "split_rebar_set",
+      "description": "Split a rebar set into several sets at bar positions",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_area_reinforcement",
+      "description": "Create area reinforcement in a floor, foundation slab or wall",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_path_reinforcement",
+      "description": "Create path reinforcement in a floor, foundation slab or wall",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "set_rebar_presentation",
+      "description": "Set rebar presentation mode, hidden bars and view-unobscured in a view",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "tag_rebar",
+      "description": "Place structural rebar tags in a view",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_bending_detail",
+      "description": "Create, move or list rebar bending details in a view",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_multi_rebar_annotation",
+      "description": "Create a multi-rebar annotation (dimension plus tag across a set)",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "manage_rebar_numbering",
+      "description": "Read and renumber rebar numbers and partitions",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
     }
   ]
 }

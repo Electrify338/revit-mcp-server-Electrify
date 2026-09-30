@@ -62,6 +62,15 @@ full job, so the fork remains usable on its own.
 - `plugin/Utils/McpClientConfigurator.cs` — standalone-mode AI app config.
 - `server/src/utils/ConnectionManager.ts` / `SocketClient.ts` — connection,
   retries, port discovery (`mcp-port.txt`), request framing.
+- `commandset/*/Reinforcement/` — the 19 rebar tools (read, create / edit,
+  detailing). `RebarToolBase.cs` has the handler base class and the
+  transaction + failure handling they share; `server/src/utils/rebarTool.ts`
+  the shared schema pieces. Tool list, conventions, how to add one, API
+  gotchas and the test plan in `docs/REBAR.md`. Shipped in v2.3.0
+  (2026-09-30): read tools checked live in Revit 2026, **the writing tools
+  compiled for R23-R27 but not yet run in Revit**. `scripts/make-test-patch.ps1`
+  builds a zip that drops a checkout's command set + server over an installed
+  plugin for testing without a release.
 - `scripts/install.ps1`, `common.ps1` — manual/one-liner install, also
   `-NonInteractive` for unattended runs; `$REPO` points at this fork.
 
