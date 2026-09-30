@@ -6,15 +6,17 @@ tool says so when the running Revit is too old for it.
 
 ## Status (2026-09-30)
 
-- **Released in v2.3.0 with the writing tools not yet run in Revit.** The
-  command set builds for R23, R24, R25, R26 and R27 with 0 errors and no new
-  warnings; the server typechecks and `tool-schemas.txt` lists 157 tools.
-- **Run live (Revit 2026, a production model):** the command set loads and
-  the read tools answer correctly: `get_rebar_types` (all twelve lists),
-  `get_view_rebar`, `get_rebar_quantities`, `manage_rebar_numbering` `list`.
-- **Not run live:** `get_host_rebar` and every tool that writes. That is what
-  the test plan below is for. Expect some to need a fix after the first live
-  run; the "Verify live" column says where.
+- **Released in v2.3.0.** The command set builds for R23, R24, R25, R26 and
+  R27 with 0 errors and no new warnings; the server typechecks and
+  `tool-schemas.txt` lists 157 tools.
+- **Run live in Revit 2026 before the release:** the read tools were checked
+  against a production model (`get_rebar_types` with all twelve lists,
+  `get_view_rebar`, `get_rebar_quantities`, `manage_rebar_numbering` `list`),
+  and the tools were then tried hands-on on the dev machine with no failure
+  reported.
+- **Not done:** the test plan below has not been worked through item by item,
+  and nothing was run on Revit 2023-2025 or 2027. The "Verify live" column
+  lists the points still worth a deliberate check.
 - No Kemet change needed: the tools live inside the plugin; zip layout, the
   `revit-mcp` entry, `SocketService` names and preserved files are untouched.
 
