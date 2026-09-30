@@ -6,7 +6,7 @@
 
 ---
 
-mcp-servers-for-revit enables AI clients like Claude, Cline, and other MCP-compatible tools to read, create, modify, and delete elements in Revit projects in real time. It exposes 141 tools covering project info, model analysis, element creation, batch operations, data export, and more.
+mcp-servers-for-revit enables AI clients like Claude, Cline, and other MCP-compatible tools to read, create, modify, and delete elements in Revit projects in real time. It exposes 138 tools covering project info, model analysis, element creation, batch operations, data export, and more.
 
 > [!NOTE]
 > This is a fork of the original [revit-mcp](https://github.com/mcp-servers-for-revit/revit-mcp) project with additional tools and functionality improvements.
@@ -293,16 +293,6 @@ All tools work across all versions. The command set uses compile-time constants 
 | `create_structural_framing_system` | Beam framing systems within a boundary |
 | `create_array` | Linear or radial arrays of elements |
 
-### Reinforcement
-
-| Tool | Description |
-| ---- | ----------- |
-| `get_rebar_types` | Bar types, hook types, rebar shapes and cover types |
-| `get_host_rebar` | A host's covers, local frame and extents, and the rebar in it |
-| `create_rebar` | Shape-driven rebar (single bar or set) from centerline points, with hooks and layout |
-
-See [docs/REBAR.md](docs/REBAR.md) for examples and the Revit 2026 API changes.
-
 ### Element Modification
 
 | Tool | Description |
@@ -478,7 +468,7 @@ mcp-servers-for-revit/
 ├── mcp-servers-for-revit.sln    # Combined solution (plugin + commandset + tests)
 ├── command.json                 # Command set manifest
 ├── server/                      # MCP server (TypeScript) - tools exposed to AI clients
-│   └── src/tools/               # One .ts file per tool (141 tools)
+│   └── src/tools/               # One .ts file per tool (138 tools)
 ├── plugin/                      # Revit add-in (C#) - TCP bridge + chat panel
 │   └── UI/                      # Dockable chat panel (XAML + code-behind)
 ├── commandset/                  # Command implementations (C#) - Revit API operations

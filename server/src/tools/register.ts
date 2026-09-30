@@ -37,7 +37,6 @@ import * as CreateMaterialTakeoffSchedule from "./create_material_takeoff_schedu
 import * as CreatePlaceholderSheets from "./create_placeholder_sheets.js";
 import * as CreatePointBasedElement from "./create_point_based_element.js";
 import * as CreateRevision from "./create_revision.js";
-import * as CreateRebar from "./create_rebar.js";
 import * as CreateRoom from "./create_room.js";
 import * as CreateRoomFinishSchedule from "./create_room_finish_schedule.js";
 import * as CreateSchedule from "./create_schedule.js";
@@ -72,7 +71,6 @@ import * as FindUndimensionedElements from "./find_undimensioned_elements.js";
 import * as FindUntaggedElements from "./find_untagged_elements.js";
 import * as GetAvailableFamilyTypes from "./get_available_family_types.js";
 import * as GetCompoundStructure from "./get_compound_structure.js";
-import * as GetHostRebar from "./get_host_rebar.js";
 import * as GetElementsByWorkset from "./get_elements_by_workset.js";
 import * as GetCurrentViewElements from "./get_current_view_elements.js";
 import * as GetCurrentViewInfo from "./get_current_view_info.js";
@@ -86,7 +84,6 @@ import * as GetMaterials from "./get_materials.js";
 import * as GetPhases from "./get_phases.js";
 import * as GetProjectInfo from "./get_project_info.js";
 import * as GetScheduleData from "./get_schedule_data.js";
-import * as GetRebarTypes from "./get_rebar_types.js";
 import * as GetSelectedElements from "./get_selected_elements.js";
 import * as GetSharedParameters from "./get_shared_parameters.js";
 import * as GetWarnings from "./get_warnings.js";
@@ -181,7 +178,6 @@ export async function registerTools(server: McpServer) {
     { name: "create_placeholder_sheets", module: CreatePlaceholderSheets },
     { name: "create_point_based_element", module: CreatePointBasedElement },
     { name: "create_revision", module: CreateRevision },
-    { name: "create_rebar", module: CreateRebar },
     { name: "create_room", module: CreateRoom },
     { name: "create_room_finish_schedule", module: CreateRoomFinishSchedule },
     { name: "create_schedule", module: CreateSchedule },
@@ -221,7 +217,6 @@ export async function registerTools(server: McpServer) {
     { name: "get_current_view_info", module: GetCurrentViewInfo },
     { name: "get_element_parameters", module: GetElementParameters },
     { name: "get_elements_in_spatial_volume", module: GetElementsInSpatialVolume },
-    { name: "get_host_rebar", module: GetHostRebar },
     { name: "get_linked_elements", module: GetLinkedElements },
     { name: "get_material_properties", module: GetMaterialProperties },
     { name: "get_room_openings", module: GetRoomOpenings },
@@ -230,7 +225,6 @@ export async function registerTools(server: McpServer) {
     { name: "get_phases", module: GetPhases },
     { name: "get_project_info", module: GetProjectInfo },
     { name: "get_schedule_data", module: GetScheduleData },
-    { name: "get_rebar_types", module: GetRebarTypes },
     { name: "get_selected_elements", module: GetSelectedElements },
     { name: "get_shared_parameters", module: GetSharedParameters },
     { name: "get_warnings", module: GetWarnings },

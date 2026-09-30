@@ -62,9 +62,6 @@ full job, so the fork remains usable on its own.
 - `plugin/Utils/McpClientConfigurator.cs` — standalone-mode AI app config.
 - `server/src/utils/ConnectionManager.ts` / `SocketClient.ts` — connection,
   retries, port discovery (`mcp-port.txt`), request framing.
-- `commandset/*/Reinforcement/` — rebar tools (`get_rebar_types`,
-  `get_host_rebar`, `create_rebar`); notes, 2026 API changes and the office
-  test plan in `docs/REBAR.md`.
 - `scripts/install.ps1`, `common.ps1` — manual/one-liner install, also
   `-NonInteractive` for unattended runs; `$REPO` points at this fork.
 

@@ -1,195 +1,228 @@
-# Rebar tools: notes and office test plan
+# Adding rebar tools: Revit 2026 API guide
 
-Three new MCP tools let an AI app read and place reinforcement in the open
-model. Target is **Revit 2026**; the code also builds for 2023-2027.
+A build guide for adding reinforcement tools to this plugin. Nothing here is
+implemented yet: this file is the plan, the API facts and the gotchas.
 
-| Tool | Writes? | What it does |
+Sources: Autodesk's API reference shipped in the NuGet packages this repo
+already builds against (`Nice3point.Revit.Api.RevitAPI` 2023, 2025, 2026.4.10,
+2027.3.0: `RevitAPI.xml` and the `[Obsolete]` messages in `RevitAPI.dll`),
+plus [API Changes 2026](https://www.revitapidocs.com/2026/news) and the
+[Developer's Guide, Rebar](https://help.autodesk.com/view/RVT/2025/ENU/?guid=Revit_API_Revit_API_Developers_Guide_Discipline_Specific_Functionality_Structural_Engineering_Structural_Model_Elements_Reinforcement_Rebar_html).
+All classes below are in `Autodesk.Revit.DB.Structure`.
+
+## 1. What the API offers
+
+| Area | Main calls | Priority |
 |---|---|---|
-| `get_rebar_types` | no | Bar types (nominal/model/bend diameters), hook types (angle, style), rebar shapes (name, style), cover types (distance). |
-| `get_host_rebar` | no | One host (id or current selection): can it host rebar, its covers, a local frame + extents to compute bar points from, and every rebar in it (bar type, shape, layout, quantity, spacing, lengths, hooks, mark, partition). |
-| `create_rebar` | yes | One shape-driven rebar, single bar or set, from a polyline of centerline points (mm), optional hooks and layout rule. One undo step: "MCP: Create Rebar". |
+| Bars / sets in a host (beam, column, wall, floor, foundation) | `Rebar.CreateFromCurves`, `Rebar.CreateFromCurvesAndShape`, `Rebar.CreateFromRebarShape` | first |
+| Set layout | `rebar.GetShapeDrivenAccessor().SetLayoutAs{Single, FixedNumber, MaximumSpacing, NumberWithSpacing, MinimumClearSpacing}` | first |
+| Hooks, cranks, end treatments | `BarTerminationsData` (new in 2026) | first |
+| Read host / existing bars | `RebarHostData.IsValidHost`, `GetRebarHostData(host).GetRebarsInHost()`, `GetAreaReinforcementsInHost`, `GetPathReinforcementsInHost` | first |
+| Types | `RebarBarType`, `RebarHookType`, `RebarShape`, `RebarCoverType` (FilteredElementCollector `OfClass`) | first |
+| Area reinforcement | `AreaReinforcement.Create(doc, host, majorDirection, areaTypeId, barTypeId, hookTypeId)` | next |
+| Path reinforcement | `PathReinforcement.Create(doc, host, curves, flip, pathTypeId, barTypeId, startHookId, endHookId[, shapeId])` | next |
+| Bending details | `RebarBendingDetail.Create(doc, viewId, rebarId, subelementKey, type, position, rotation)` | next (beam-detailing skills) |
+| One tag across a set | `MultiReferenceAnnotation.Create(doc, viewId, options)` | next |
+| Split a set (2026+) | `Rebar.SplitRebar(doc, id, ISet<int> barIndexes, bool, bool)` | later |
+| Free form | `Rebar.CreateFreeForm(doc, barType, host, curves, RebarStyle)` | later |
+| Couplers, fabric | `RebarCoupler.Create`, `FabricArea.Create`, `FabricSheet.Create` | later |
 
-## Status (2026-09-30)
+## 2. What changed in 2026 (and was removed in 2027)
 
-- **Compiled, not run.** The command set was compiled on Linux against the
-  Revit API reference assemblies (NuGet `Nice3point.Revit.Api.RevitAPI`)
-  for R23, R24, R25, R26 and R27: 0 errors, no warnings from the new files.
-  The server typechecks (`npm run build:check`) and the three tools appear in
-  `tool-schemas.txt`. **Nothing has been exercised inside Revit yet** - that
-  is what the test plan below is for.
-- No Kemet change needed: new tools live inside the plugin; zip layout, the
-  `revit-mcp` entry, `SocketService` names and preserved files are untouched.
+Hooks, cranks and end treatments now live in one object, `BarTerminationsData`
+(`HookTypeIdAtStart/End`, `CrankTypeIdAtStart/End`, `EndTreatmentTypeIdAtStart/End`,
+`TerminationOrientationAtStart/End`, `TerminationRotationAngleAtStart/End`).
+Setting a hook clears the crank/end treatment at that end, and vice versa.
 
-## Files
-
-| File | Job |
+| 2023-2025 (deprecated in 2026, **gone in 2027**) | 2026+ |
 |---|---|
-| `commandset/Commands/Reinforcement/*Command.cs` | Parse JSON, raise the external event. |
-| `commandset/Services/Reinforcement/GetRebarTypesEventHandler.cs` | `get_rebar_types`. |
-| `commandset/Services/Reinforcement/GetHostRebarEventHandler.cs` | `get_host_rebar`, incl. the local frame. |
-| `commandset/Services/Reinforcement/CreateRebarEventHandler.cs` | `create_rebar`. `#if REVIT2026_OR_GREATER` picks the API (see below). |
-| `commandset/Services/Reinforcement/RebarHelpers.cs` | mm/ft, lookups by id or name, host from selection. |
-| `server/src/tools/{get_rebar_types,get_host_rebar,create_rebar}.ts` | Tool schemas the AI sees. |
-| `command.json` | Three entries so the plugin loads the commands. |
+| `Rebar.CreateFromCurves(doc, style, barType, startHook, endHook, host, norm, curves, startOrient, endOrient, useExisting, createNew)` | `Rebar.CreateFromCurves(doc, style, barType, host, norm, curves, BarTerminationsData, useExisting, createNew)` |
+| `Rebar.CreateFromCurvesAndShape(doc, shape, barType, startHook, endHook, host, norm, curves, startOrient, endOrient)` | `Rebar.CreateFromCurvesAndShape(doc, shape, barType, host, norm, curves, BarTerminationsData)` |
+| `RebarShape.Create(... RebarHookOrientation ...)` | `RebarShape.Create(..., RebarShapeTerminationsData)` |
+| `Rebar.Get/SetHookOrientation`, `Get/SetHookRotationAngle` | `Rebar.Get/SetTerminationOrientation`, `Get/SetTerminationRotationAngle` |
+| enum `RebarHookOrientation` | enum `RebarTerminationOrientation` (Left, Right) |
+| `new RebarBendData(... hooks ...)`, `HookOrient0/1` | `new RebarBendData(barType, style, BarTerminationsData)`, `TerminationOrientation0/1` |
+| `Rebar.CreateFreeForm(..., out RebarFreeFormValidationResult)` | `Rebar.CreateFreeForm(doc, barType, host, curves, RebarStyle)` |
 
-The folders are called `Reinforcement`, not `Rebar`: a namespace named
-`...Rebar` would hide Revit's `Rebar` class inside it.
+Orientation, from the reference: *Left/Right = the termination is on your
+left/right as you stand at the end of the bar, with the bar behind you, taking
+the bar's normal as "up". Default Left.*
 
-## Build and install for testing (office PC, Windows)
+This repo builds R23-R27 from one source, so creation code needs
+`#if REVIT2026_OR_GREATER` (the symbol is already defined in
+`commandset/RevitMCPCommandSet.csproj`). The old overloads do not exist in
+2027, so they can't just be left in place with a warning.
 
-Close Revit and any AI app that has the MCP server open (they hold `node.exe`).
+Unchanged 2023-2027 (checked in all four XMLs): the `SetLayoutAs*` methods,
+`RebarHostData.*`, `Rebar.GetHookTypeId`, `GetShapeId`, `Quantity`,
+`NumberOfBarPositions`, `TotalLength`, `LayoutRule`, `MaxSpacing`,
+`SetUnobscuredInView`, `GetCenterlineCurves`, `RebarBarType.BarNominalDiameter`
+/ `BarModelDiameter` / `StandardBendDiameter` / `StirrupTieBendDiameter`,
+`RebarHookType.HookAngle` / `Style`, `RebarShape.RebarStyle`,
+`RebarCoverType.CoverDistance`, and the parameters `CLEAR_COVER_TOP/BOTTOM/
+OTHER/INTERIOR/EXTERIOR`, `REBAR_ELEM_LENGTH`, `REBAR_NUMBER`,
+`NUMBER_PARTITION_PARAM`.
+
+## 3. How a tool is wired in this repo
+
+Five touch points per tool (copy `get_compound_structure` /
+`create_floor` as models):
+
+1. `commandset/Commands/<Folder>/<Name>Command.cs`: `ExternalEventCommandBase`,
+   `CommandName => "snake_name"`, parse the `JObject`, `RaiseAndWaitForCompletion`.
+2. `commandset/Services/<Folder>/<Name>EventHandler.cs`: `IExternalEventHandler,
+   IWaitableExternalEventHandler`; does the Revit work, sets `AIResult<object>`,
+   `_resetEvent.Set()` in `finally`. Reset the event in `SetParameters`
+   (as `CreateFloorEventHandler` does).
+3. `command.json`: one entry with the same `commandName` (the plugin only loads
+   listed commands; `Enabled` defaults to true).
+4. `server/src/tools/<snake_name>.ts` with zod schema, plus two lines in
+   `server/src/tools/register.ts`.
+5. Regenerate `tool-schemas.txt` and `plugin/tool_schemas.json`:
+   `cd server && node esbuild.config.mjs && node generate-tool-schemas.mjs`
+   (not `npm run build`, which also overwrites the installed plugin, see
+   CLAUDE.md).
+
+Then README / COMMANDS.md / USER_GUIDE.md tables.
+
+## 4. Proposed first three tools
+
+**`get_rebar_types`** (read-only). Params: `include` (barTypes, hookTypes,
+shapes, coverTypes), `nameFilter`. Returns id, name and mm values for each.
+
+**`get_host_rebar`** (read-only). Params: `hostId` (else the selected element),
+`includeGeometry`. Returns `isValidRebarHost`, covers (from the `CLEAR_COVER_*`
+parameters, which hold a `RebarCoverType` id), a local frame and every rebar in
+the host (bar type, shape, style, layout rule, quantity, spacing, array length,
+bar/total length, hooks, mark, partition). The frame is what makes placement
+possible for an AI:
+- beam / wall with a straight location line: x = line direction, y =
+  `BasisZ.CrossProduct(x)`, z = `x.CrossProduct(y)`, origin = line start;
+- other family instances (columns): `GetTransform()` basis;
+- then project the host's solid edge points onto the axes to get min/max
+  extents in mm (fallback: bounding box corners).
+
+**`create_rebar`**. Params: `hostId`, `barTypeName|barTypeId`, `style`
+(Standard | StirrupTie), `points` (polyline, mm, ≥2; closed stirrup repeats the
+first point), `normal` (required for straight bars, derivable from 3
+non-collinear points otherwise), `shapeName|shapeId` (optional, forces
+`CreateFromCurvesAndShape`), `start/endHookName|Id`, `start/endHookOrientation`,
+`layout {rule, number, spacingMm, arrayLengthMm, barsOnNormalSide,
+includeFirstBar, includeLastBar}`, `useExistingShapeIfPossible`,
+`createNewShape`, `showUnobscuredInActiveView`.
+Validate before calling Revit: every segment square to the normal, all points
+in one plane, consecutive points ≥ 1 mm apart.
+
+## 5. Code that matters
+
+The snippets below were compile-checked against the R23-R27 reference
+assemblies. They have not been run in Revit.
+
+Creation, both API generations:
+
+```csharp
+using RevitRebar = Autodesk.Revit.DB.Structure.Rebar;
+
+#if REVIT2026_OR_GREATER
+using (var terms = new BarTerminationsData(doc))
+{
+    if (startHook != null) terms.HookTypeIdAtStart = startHook.Id;
+    if (endHook != null)   terms.HookTypeIdAtEnd = endHook.Id;
+    terms.TerminationOrientationAtStart = RebarTerminationOrientation.Left;
+    terms.TerminationOrientationAtEnd   = RebarTerminationOrientation.Left;
+
+    rebar = shape != null
+        ? RevitRebar.CreateFromCurvesAndShape(doc, shape, barType, host, normal, curves, terms)
+        : RevitRebar.CreateFromCurves(doc, style, barType, host, normal, curves, terms,
+                                      useExistingShape, createNewShape);
+}
+#else
+rebar = shape != null
+    ? RevitRebar.CreateFromCurvesAndShape(doc, shape, barType, startHook, endHook, host, normal, curves,
+                                          RebarHookOrientation.Left, RebarHookOrientation.Left)
+    : RevitRebar.CreateFromCurves(doc, style, barType, startHook, endHook, host, normal, curves,
+                                  RebarHookOrientation.Left, RebarHookOrientation.Left,
+                                  useExistingShape, createNewShape);
+#endif
+// null => no matching shape (createNewShape false, or curves/hooks don't fit shapeName)
+```
+
+Layout (same in all versions; lengths in feet):
+
+```csharp
+var a = rebar.GetShapeDrivenAccessor();
+a.SetLayoutAsFixedNumber(number, arrayLength, barsOnNormalSide, includeFirst, includeLast);
+a.SetLayoutAsMaximumSpacing(spacing, arrayLength, barsOnNormalSide, includeFirst, includeLast);
+a.SetLayoutAsNumberWithSpacing(number, spacing, barsOnNormalSide, includeFirst, includeLast);
+a.SetLayoutAsMinimumClearSpacing(spacing, arrayLength, barsOnNormalSide, includeFirst, includeLast);
+```
+
+Keep Revit dialogs out of an unattended call: give the transaction an
+`IFailuresPreprocessor` that records and `DeleteWarning`s warnings and returns
+`ProceedWithRollBack` on errors; then `tx.Commit() != Committed` means Revit
+refused, and the recorded error text is the message for the AI.
+
+## 6. Gotchas found while checking
+
+- **Don't name the namespace `...Rebar`.** Inside
+  `RevitMCPCommandSet.Services.Rebar`, `Rebar` resolves to the namespace, not
+  Revit's class. Use `Reinforcement` for the folders, and/or
+  `using RevitRebar = Autodesk.Revit.DB.Structure.Rebar;`.
+- **`ElementIdExtensions` is ambiguous** between `RevitMCPCommandSet.Utils`
+  and `Nice3point.Revit.Extensions`: write `Utils.ElementIdExtensions.FromLong(...)`.
+- `Rebar.GetShapeId()` throws for free-form rebar matched to several shapes;
+  `MaxSpacing` throws on a Single layout; `GetCenterlineCurves(..., 0)` throws if
+  the first bar is excluded. Guard these when listing a host's bars.
+- `RebarHostData.IsValidHost` is false for steel and non-structural
+  elements: check it first and return a plain message.
+- Units: tools speak mm, Revit feet (`/ 304.8`). Hook angles are radians.
+- Bar type and hook names differ per template (`10M`, `16 mm`, `Standard -
+  90 deg.`, `Stirrup/Tie Seismic - 135 deg.`...): always look them up.
+
+## 7. Building and testing at the office
+
+Build (Windows, Revit closed, AI apps closed since they hold `node.exe`):
 
 ```powershell
-git fetch origin
-git checkout ccr-dba00ec1-htwee1
-git pull
-
-cd server
-npm ci
-node esbuild.config.mjs          # builds server\build\index.js, does NOT touch the install
-cd ..
-
-# Debug builds copy into %AppData%\Autodesk\Revit\Addins\2026\revit_mcp_plugin\Commands\:
-#   RevitMCPCommandSet\2026\RevitMCPCommandSet.dll, command.json, commandRegistry.json,
-#   and server\build\ (the new index.js with the three tools)
+cd server; npm ci; node esbuild.config.mjs; node generate-tool-schemas.mjs; cd ..
 dotnet build commandset\RevitMCPCommandSet.csproj -c "Debug R26"
 ```
 
-Building only the command set leaves the installed `RevitMCPPlugin.dll`
-(v2.2.2) alone, so Kemet's `McpInstaller` sees the same version and does not
-reinstall over the test build. `commandRegistry.json` is overwritten, which
-re-enables every command (any commands switched off in the plugin's settings
-page are switched back on).
+The Debug build copies the command set DLL, `command.json`,
+`commandRegistry.json` and `server\build\` into
+`%AppData%\Autodesk\Revit\Addins\2026\revit_mcp_plugin\Commands\`. It leaves
+`RevitMCPPlugin.dll` (2.2.2) alone, so Kemet does not reinstall over it.
+`commandRegistry.json` is replaced, which re-enables any switched-off
+commands. To undo, reinstall the release zip (`INSTALLA.bat`).
 
-**Undo the test install:** reinstall the released zip (`INSTALLA.bat`, or
-`scripts\install.ps1`), or delete the plugin folder and let Kemet install it
-again from the share.
+Start Revit, click **MCP On**, restart the AI app.
 
-Then: start Revit 2026, click **MCP On**, restart the AI app (Claude Code:
-new session) so it sees the new tools.
+Test model: Structural template, `Concrete-Rectangular Beam` 300x600, a 6 m
+beam, a 3D view active.
 
-## Test plan
-
-Use a model with a **concrete** beam: e.g. new project from the Structural
-template, load `Concrete-Rectangular Beam` (300x600), draw a 6 m beam on
-Level 2. Keep a 3D view active.
-
-| # | Ask the AI / call | Expect |
+| # | Test | Expect |
 |---|---|---|
-| 1 | `get_rebar_types` | Non-empty `barTypes`, `hookTypes`, `shapes`, `coverTypes`. Diameters in mm match the type names. |
-| 2 | Select the beam, `get_host_rebar` (no id) | `isValidRebarHost: true`, `covers.top/bottom/other` with mm, `frame.kind: "locationLine"`, `xAxis` along the beam, extents x ~ 0..6000, y ~ -150..150, z ~ -600..0 (location line is usually the top). `rebarCount: 0`. |
-| 3 | `get_host_rebar` on a door or a steel beam | `isValidRebarHost: false` and a plain message, no exception. |
-| 4 | One straight bottom bar (example A) | Bar appears, inside the concrete, `shape` is a straight shape (e.g. `00`/`M_00`), `quantity: 1`. |
-| 5 | Same bar with `layout: {rule: "FixedNumber", number: 4, arrayLengthMm: <b - 2*cover - 2*stirrup - bar>}` and `normal` = frame `yAxis` | 4 bars across the width, within the cover. |
-| 6 | Stirrups (example B) | Closed stirrups with 135 degree hooks, spaced 150 mm along the beam. If the hooks point outwards or the shape looks wrong, retry with `startHookOrientation`/`endHookOrientation: "Right"` and **note which one was right** (goes into the tool description). |
-| 7 | Bar with 90 degree hooks both ends | Hooks turn up into the beam. Again note Left/Right. |
-| 8 | Straight bar **without** `normal` | Error "A straight bar needs 'normal' ...". Nothing created. |
-| 9 | Bad `barTypeName` | Error that lists available bar types. |
-| 10 | Points outside the host | Either an error, or success with `revitWarnings` (e.g. rebar outside host). No Revit dialog should block. |
-| 11 | `get_host_rebar` with `includeGeometry: true` | Lists everything created, with spacing, lengths, hooks and first-bar centerline. |
-| 12 | Ctrl+Z in Revit | Each `create_rebar` undoes in one step. |
-| 13 | Revit 2025 or 2024 if at hand | Same as 4-7 (old hook API path). |
-| 14 | `logs\usage-yyyy-MM.jsonl` in the plugin folder (this month) | Lines for the rebar tools with `ok` true/false. |
+| 1 | `get_rebar_types` | Non-empty lists, diameters match names. |
+| 2 | `get_host_rebar` on the selected beam | Valid host, covers in mm, frame along the beam, extents ~0..6000 / -150..150 / -600..0. |
+| 3 | `get_host_rebar` on a door or steel beam | Not a valid host, plain message. |
+| 4 | One straight bottom bar | Bar inside the concrete, straight shape, quantity 1. |
+| 5 | Same, FixedNumber 4 across the width | 4 bars within cover. |
+| 6 | Closed stirrups, 135° hooks, 150 mm max spacing | Stirrups along the beam. **Note whether Left or Right orientation is correct.** |
+| 7 | Bar with 90° hooks both ends | Hooks turn into the beam; note Left/Right. |
+| 8 | Straight bar with no `normal`; bad bar type name | Clear errors, nothing created. |
+| 9 | Points outside the host | Error or `revitWarnings`, never a blocking dialog. |
+| 10 | Ctrl+Z | Each create undoes in one step. |
+| 11 | Same in Revit 2025/2024 if available | Old API path works. |
 
-### Example A - straight bottom bar
+Worked numbers for 4-6 (beam top at z = 3000, 40 mm cover, 10 mm stirrups,
+16 mm bars): bottom bar centerline z = 3000 - 600 + 40 + 10 + 8 = 2458,
+y = ±92, x = 40..5960, `normal` (0,1,0), FixedNumber 4 over 184 mm.
+Stirrup centerline 45 mm in from each face: points at x = 50,
+(y, z) = (-105, 2955) → (105, 2955) → (105, 2445) → (-105, 2445) → back to
+start, `normal` (1,0,0), MaximumSpacing 150 over 5900.
 
-Suppose `get_host_rebar` returned `originMm {x:0,y:0,z:3000}`, `xAxis (1,0,0)`,
-`yAxis (0,1,0)`, `zAxis (0,0,1)`, extents x 0..6000, y -150..150, z -600..0,
-covers 40 mm, and 10 mm stirrups are planned. For a 16 mm bar the centerline
-sits 40 + 10 + 8 = 58 mm inside the concrete:
+## 8. Contract check
 
-```json
-{
-  "hostId": 123456,
-  "barTypeName": "16 mm",
-  "style": "Standard",
-  "points": [ { "x": 40, "y": -92, "z": 2458 }, { "x": 5960, "y": -92, "z": 2458 } ],
-  "normal": { "x": 0, "y": 1, "z": 0 },
-  "layout": { "rule": "FixedNumber", "number": 4, "arrayLengthMm": 184 },
-  "showUnobscuredInActiveView": true
-}
-```
-
-(z = 3000 - 600 + 58; y from -150 + 58 to +150 - 58, so the set spans 184 mm.)
-
-### Example B - stirrups
-
-Rectangle in the plane square to the beam at x = 50, 10 mm bar, centerline
-45 mm in from each face (40 cover + 5), closed by repeating the first point:
-
-```json
-{
-  "hostId": 123456,
-  "barTypeName": "10 mm",
-  "style": "StirrupTie",
-  "points": [
-    { "x": 50, "y": -105, "z": 2955 }, { "x": 50, "y": 105, "z": 2955 },
-    { "x": 50, "y": 105, "z": 2445 }, { "x": 50, "y": -105, "z": 2445 },
-    { "x": 50, "y": -105, "z": 2955 }
-  ],
-  "normal": { "x": 1, "y": 0, "z": 0 },
-  "startHookName": "Stirrup/Tie Seismic - 135 deg.",
-  "endHookName": "Stirrup/Tie Seismic - 135 deg.",
-  "layout": { "rule": "MaximumSpacing", "spacingMm": 150, "arrayLengthMm": 5900 },
-  "showUnobscuredInActiveView": true
-}
-```
-
-Bar type and hook names differ per template; take them from `get_rebar_types`.
-
-## Revit API notes (from the 2026 API reference)
-
-Source: `RevitAPI.xml` / `RevitAPI.dll` in `Nice3point.Revit.Api.RevitAPI`
-2026.4.10 and 2027.3.0 (Autodesk's own reference docs and `[Obsolete]`
-messages), plus revitapidocs.com "API Changes 2026".
-
-**Hooks moved into `BarTerminationsData` in 2026.** One object holds hook,
-crank and end-treatment type at each end, plus orientation and rotation.
-Deprecated in 2026 and **removed in 2027**:
-
-| Old (2023-2025) | 2026+ |
-|---|---|
-| `Rebar.CreateFromCurves(doc, style, barType, startHook, endHook, host, norm, curves, startOrient, endOrient, useExisting, createNew)` | `Rebar.CreateFromCurves(doc, style, barType, host, norm, curves, BarTerminationsData, useExisting, createNew)` |
-| `Rebar.CreateFromCurvesAndShape(... startHook, endHook ..., startOrient, endOrient)` | `Rebar.CreateFromCurvesAndShape(doc, shape, barType, host, norm, curves, BarTerminationsData)` |
-| `RebarShape.Create(... RebarHookOrientation ...)` | `RebarShape.Create(..., RebarShapeTerminationsData)` |
-| `Rebar.Get/SetHookOrientation`, `Get/SetHookRotationAngle` | `Rebar.Get/SetTerminationOrientation`, `Get/SetTerminationRotationAngle` |
-| `RebarHookOrientation` | `RebarTerminationOrientation` (Left/Right) |
-| `RebarBendData` hook constructor/properties | `RebarBendData(barType, style, BarTerminationsData)`, `TerminationOrientation0/1` |
-| `Rebar.CreateFreeForm(..., out RebarFreeFormValidationResult)` | `Rebar.CreateFreeForm(doc, barType, host, curves, RebarStyle)` |
-
-Orientation, per the reference: *Left/Right = the termination is on your
-left/right as you stand at the end of the bar, with the bar behind you,
-taking the bar's normal as "up". Default Left.*
-
-Also new in 2026: `Rebar.SplitRebar(doc, id, ISet<int> barIndexes, bool, bool)`
-(split a set), `RebarCrankTypeUtils`, `RebarCrankOverridableParameters`,
-`RebarEndType`.
-
-**Unchanged and used here:** `RebarShapeDrivenAccessor.SetLayoutAs{Single,
-FixedNumber, MaximumSpacing, NumberWithSpacing, MinimumClearSpacing}`,
-`RebarHostData.IsValidHost / GetRebarHostData / GetRebarsInHost`,
-`Rebar.GetHookTypeId`, `SetUnobscuredInView`, `GetCenterlineCurves`,
-`RebarBarType.BarNominalDiameter / BarModelDiameter`, `CLEAR_COVER_*`
-parameters.
-
-## Candidates for the next round
-
-| Tool | API |
-|---|---|
-| `create_area_reinforcement` (slabs, walls) | `AreaReinforcement.Create(doc, host, majorDirection, areaTypeId, barTypeId, hookTypeId)` |
-| `create_path_reinforcement` | `PathReinforcement.Create(...)` |
-| `create_bending_detail` (for the beam-detailing skills) | `RebarBendingDetail.Create(doc, viewId, rebarId, subelementKey, type, position, rotation)` |
-| `tag_rebar` (one tag across a set) | `MultiReferenceAnnotation.Create(doc, viewId, options)` |
-| `split_rebar_set` (2026+) | `Rebar.SplitRebar(...)` |
-| Arcs in `create_rebar` | `Arc.Create` segments; same `CreateFromCurves` |
-| Couplers, fabric, free form | `RebarCoupler.Create`, `FabricArea/FabricSheet.Create`, `Rebar.CreateFreeForm` |
-
-## Known limits
-
-- Straight segments only (no arcs) and shape-driven rebar only.
-- Points are model (internal) coordinates in mm, same as every other tool
-  here; `get_host_rebar` returns its frame in the same coordinates.
-- `createNewShape` defaults to true, so an odd polyline can add a new
-  RebarShape to the model. Set it false to only reuse existing shapes.
-- The host must be a valid rebar host (structural concrete). Steel or
-  non-structural elements are refused with a message.
+New tools live entirely inside the plugin: zip layout, the `revit-mcp` entry,
+`SocketService` names and preserved files are untouched, so Kemet Addons needs
+no change.
