@@ -8,6 +8,7 @@
 
 - [Setup](#setup)
 - [Element Creation](#element-creation)
+- [Reinforcement](#reinforcement)
 - [Element Modification](#element-modification)
 - [Element Query & Data Extraction](#element-query--data-extraction)
 - [View & Sheet Management](#view--sheet-management)
@@ -137,6 +138,36 @@ Create 2D filled regions in views.
     {"x": 5000, "y": 3000}, {"x": 0, "y": 3000}
   ],
   "filledRegionTypeName": "Solid Black"
+}
+```
+
+---
+
+## Reinforcement
+
+Examples, the local-frame maths and the Revit 2026 hook API changes: [docs/REBAR.md](docs/REBAR.md).
+
+### `get_rebar_types`
+List rebar bar types, hook types, rebar shapes and cover types (read-only).
+```json
+{ "include": ["barTypes", "hookTypes"], "nameFilter": "16" }
+```
+
+### `get_host_rebar`
+Describe a host (id, or the selected element): whether it can host rebar, covers, a local frame (origin + axes) with the host's extents in it, and all rebar in it.
+```json
+{ "hostId": 123456, "includeGeometry": true }
+```
+
+### `create_rebar`
+Create shape-driven rebar from a polyline of centerline points (mm). Straight bars need `normal` (the set direction). Closed stirrups repeat the first point and use `style: "StirrupTie"`.
+```json
+{
+  "hostId": 123456, "barTypeName": "16 mm",
+  "points": [ { "x": 40, "y": -92, "z": 2458 }, { "x": 5960, "y": -92, "z": 2458 } ],
+  "normal": { "x": 0, "y": 1, "z": 0 },
+  "startHookName": "Standard - 90 deg.", "endHookName": "Standard - 90 deg.",
+  "layout": { "rule": "FixedNumber", "number": 4, "arrayLengthMm": 184 }
 }
 ```
 

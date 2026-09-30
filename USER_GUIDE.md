@@ -41,6 +41,9 @@
 | `create_grid` | Grid systems with spacing | "Create a 6x4 grid at 7200mm spacing" |
 | `create_level` | Levels with auto floor plan generation | "Create levels at 0, 3000, 6000, 9000mm" |
 | `create_structural_framing_system` | Beam systems with spacing | "Create beam framing at 1200mm spacing" |
+| `get_rebar_types` | Rebar bar/hook/shape/cover types | "Which rebar bar types are in this model?" |
+| `get_host_rebar` | Host covers, frame and existing rebar | "What reinforcement is in the selected beam?" |
+| `create_rebar` | Rebar bars and sets in a concrete host | "Add 4 bottom bars and 10mm stirrups at 150mm in beam 123456" |
 
 ### Element Modification
 

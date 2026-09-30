@@ -652,6 +652,21 @@
       "commandName": "duplicate_schedule",
       "description": "Duplicate a schedule by ID or name with a new name",
       "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_rebar_types",
+      "description": "List rebar bar types, hook types, shapes and cover types",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_host_rebar",
+      "description": "Describe a rebar host (covers, local frame, extents) and the rebar in it",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_rebar",
+      "description": "Create shape-driven rebar (single bar or set) in a host from centerline points",
+      "assemblyPath": "RevitMCPCommandSet/{VERSION}/RevitMCPCommandSet.dll"
     }
   ]
 }
