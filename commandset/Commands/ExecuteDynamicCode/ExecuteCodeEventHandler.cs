@@ -120,15 +120,10 @@ namespace AIGeneratedCode
 
             var syntaxTree = CSharpSyntaxTree.ParseText(wrappedCode);
 
-            // Add required assembly references (deduplicate by simple name to avoid conflicts
-            // caused by addins like BIM360 loading assemblies with the same name)
-            var references = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
-                .GroupBy(a => a.GetName().Name)
-                .Select(g => g.First())
-                .Select(a => MetadataReference.CreateFromFile(a.Location))
-                .Cast<MetadataReference>()
-                .ToList();
+            // Reference every assembly Revit has loaded, except ones the compiler cannot read.
+            // Third-party add-ins (e.g. Naviate's CheckMulti.dll / license.dll) can ship
+            // protected or obfuscated DLLs; one unreadable file used to break every script.
+            var references = BuildReferences();
 
             // Compile code
             var compilation = CSharpCompilation.Create(
@@ -141,6 +136,30 @@ namespace AIGeneratedCode
             using (var ms = new MemoryStream())
             {
                 var result = compilation.Emit(ms);
+
+                // Safety net: if the compiler still says some reference file cannot be
+                // opened (CS0009), drop those files and compile once more.
+                if (!result.Success)
+                {
+                    var unreadable = result.Diagnostics
+                        .Where(d => d.Id == "CS0009" && d.Severity == DiagnosticSeverity.Error)
+                        .Select(d => d.GetMessage())
+                        .ToList();
+                    if (unreadable.Count > 0)
+                    {
+                        var kept = references
+                            .Where(r => !(r is PortableExecutableReference pe) ||
+                                        string.IsNullOrEmpty(pe.FilePath) ||
+                                        !unreadable.Any(m => m.IndexOf(pe.FilePath, StringComparison.OrdinalIgnoreCase) >= 0))
+                            .ToList();
+                        if (kept.Count < references.Count)
+                        {
+                            compilation = compilation.WithReferences(kept);
+                            ms.SetLength(0);
+                            result = compilation.Emit(ms);
+                        }
+                    }
+                }
 
                 // Handle compilation result
                 if (!result.Success)
@@ -158,6 +177,70 @@ namespace AIGeneratedCode
                 var executeMethod = executorType.GetMethod("Execute");
 
                 return executeMethod.Invoke(null, new object[] { doc, parameters });
+            }
+        }
+
+        /// <summary>
+        /// One reference per loaded assembly (first one wins per simple name, because add-ins
+        /// like BIM360 load duplicates). Skips dynamic/in-memory assemblies, files that no
+        /// longer exist, and files that are not readable .NET assemblies.
+        /// </summary>
+        private static List<MetadataReference> BuildReferences()
+        {
+            var references = new List<MetadataReference>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string name;
+                string location;
+                try
+                {
+                    if (assembly.IsDynamic) continue;
+                    location = assembly.Location;
+                    name = assembly.GetName().Name;
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(location) || string.IsNullOrEmpty(name)) continue;
+                if (seen.Contains(name)) continue;
+                if (!IsReadableAssembly(location)) continue;
+
+                try
+                {
+                    references.Add(MetadataReference.CreateFromFile(location));
+                    seen.Add(name);
+                }
+                catch
+                {
+                    // Locked, deleted or unreadable: leave it out rather than fail the script.
+                }
+            }
+
+            return references;
+        }
+
+        private static bool IsReadableAssembly(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return false;
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                using (var peReader = new System.Reflection.PortableExecutable.PEReader(stream))
+                {
+                    if (!peReader.HasMetadata) return false;
+                    var reader = System.Reflection.Metadata.PEReaderExtensions.GetMetadataReader(peReader);
+                    if (!reader.IsAssembly) return false;
+                    reader.GetAssemblyDefinition();
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
             }
         }
 
